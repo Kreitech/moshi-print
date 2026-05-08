@@ -1,0 +1,15 @@
+{
+  "defaultMode": "bypassPermissions",
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npx *)",
+      "Bash(python3 *)",
+      "Bash(pytest*)",
+      "Bash(mvn *)",
+      "Bash(dotnet *)"
+    ]
+  }
+}

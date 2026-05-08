@@ -1,0 +1,12 @@
+{
+  "cSpell.words": [
+    "hive", "prisma", "claude", "figma", "atlassian", "mcp",
+    "clickup", "dotnet", "gitlab", "glab", "mypy", "pytest",
+    "uvicorn", "venv", "virtualenv"
+  ],
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative"
+}

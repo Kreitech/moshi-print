@@ -1,0 +1,19 @@
+---
+description: Test standards — applied when editing test files
+globs: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts", "src/**/*.test.ts", "src/**/e2e/**/*.ts"]
+alwaysApply: false
+---
+
+# Test Standards (lazy-loaded)
+
+Full standards: `.hive/standards/backend.mdc` (section 8) and `.hive/standards/frontend.mdc`
+
+## Quick reference
+
+- **AAA pattern**: Arrange → Act → Assert. One behavior per test.
+- **Red first**: tests must fail before implementation exists.
+- Test names: plain English specs — `"should return 400 when email is missing"`
+- No `test.only`, `test.skip`, `xit`, `fit` in committed code
+- Mock all external dependencies (Prisma, HTTP clients, logger)
+- `jest.clearAllMocks()` in `beforeEach`
+- Coverage threshold: 90% (branches, functions, lines, statements)

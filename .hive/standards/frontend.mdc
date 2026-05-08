@@ -1,0 +1,423 @@
+# Standards: Frontend (node-react-prisma stack)
+> Extends `core/standards/core.mdc`. Read core first.
+> Stack: React 18 · TypeScript 5 · shadcn/ui · Tailwind CSS 3 · React Router 6 · Axios · Playwright
+
+---
+
+## 1. Project Structure
+
+```
+src/frontend/src/
+├── components/         # Reusable UI components (no business logic, no direct API calls)
+│   ├── common/         # Truly generic: Button, Modal, Alert, Spinner wrappers
+│   └── {feature}/      # Feature-scoped: EmployeeCard, ProjectList
+├── pages/              # Route-level components — orchestrate, no raw UI logic
+├── hooks/              # Custom hooks: useEmployee, useProjectData, useFormValidation
+├── services/           # All API calls — never axios directly in components
+├── types/              # TypeScript: domain.types.ts, api.types.ts
+├── constants/          # ROUTES, STATUS_VALUES, API_BASE_URL
+├── assets/             # Images, fonts
+├── App.tsx             # Router setup + route definitions
+└── index.tsx           # Entry point
+```
+
+**Rule:** Components in `components/` never call `services/` directly.
+Data flows: `services/` → `pages/` or `hooks/` → `components/` via props.
+
+---
+
+## 1b. shadcn/ui usage
+
+Always import shadcn components from `@/components/ui/`:
+
+```typescript
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+```
+
+Never install raw Radix UI primitives directly — use the shadcn wrapper.
+Never use raw HTML `<button>`, `<input>`, `<table>` — always use the shadcn equivalent.
+Use Tailwind utility classes for layout and spacing. Never write custom CSS files.
+
+---
+
+## 2. Component Rules
+
+### Always functional — never class components
+
+```typescript
+// Good
+const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee, onClick }) => (
+    <div className="rounded-lg border p-4" onClick={() => onClick(employee)}>
+        {employee.fullName}
+    </div>
+);
+
+// Never
+class EmployeeCard extends React.Component<EmployeeCardProps> { ... }
+```
+
+### Props: typed, destructured, with defaults
+
+```typescript
+type EmployeeCardProps = {
+    employee: Employee;
+    isSelected?: boolean;
+    onClick: (employee: Employee) => void;
+};
+
+const EmployeeCard: React.FC<EmployeeCardProps> = ({
+    employee,
+    isSelected = false,
+    onClick,
+}) => { ... };
+```
+
+### Size limit: ~150 lines per file. Split if larger.
+
+### No anonymous default exports
+
+```typescript
+// Good
+export const EmployeeCard: React.FC<...> = ...;
+// Avoid
+export default ({ employee }) => ...;
+```
+
+---
+
+## 3. TypeScript Rules
+
+- Strict mode always on
+- No `any` — use `unknown` and narrow, or define the type
+- No non-null assertion `!` — handle nullability
+- Prefer `type` for props and local shapes; `interface` for extensible contracts
+- Enums for fixed status sets
+
+```typescript
+// domain.types.ts
+export type EmployeeStatus = "Applied" | "Interview" | "Offer" | "Rejected"
+
+export type Employee = {
+    id: string;
+    fullName: string;
+    email: string;
+    status: EmployeeStatus;
+    projectId: string;
+};
+```
+
+New components: `.tsx`. Existing JS components: maintain as `.js` until planned migration.
+
+---
+
+## 4. State Management
+
+### Three-state pattern — always
+
+```typescript
+const [data,    setData]    = useState<Project[]>([]);
+const [loading, setLoading] = useState(false);
+const [error,   setError]   = useState<string | null>(null);
+
+const loadData = async () => {
+    try {
+        setLoading(true);
+        setError(null);
+        const result = await projectService.getAll();
+        setData(result);
+    } catch (err) {
+        setError("Failed to load projects. Please try again.");
+        logger.error("Project load failed", { error: err });  // use project logger, not console
+    } finally {
+        setLoading(false);
+    }
+};
+```
+
+### Custom hooks for reusable stateful logic
+
+```typescript
+// hooks/useProjects.ts
+export const useProjects = () => {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        projectService.getAll()
+            .then(data => { if (!cancelled) setProjects(data); })
+            .catch(() => { if (!cancelled) setError("Failed to load projects."); })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, []);
+
+    return { projects, loading, error };
+};
+```
+
+---
+
+## 5. Service Layer
+
+All API calls in `src/services/`. Components never call `axios` directly.
+
+```typescript
+// services/projectService.ts
+import axios from "axios";
+import type { Project, CreateProjectDto } from "../types/domain.types";
+
+const BASE = process.env.REACT_APP_API_URL ?? "http://localhost:3000";
+
+export const projectService = {
+    getAll: async (): Promise<Project[]> => {
+        const { data } = await axios.get<Project[]>(`${BASE}/projects`);
+        return data;
+    },
+
+    getById: async (id: string): Promise<Project> => {
+        const { data } = await axios.get<Project>(`${BASE}/projects/${id}`);
+        return data;
+    },
+
+    create: async (dto: CreateProjectDto): Promise<Project> => {
+        const { data } = await axios.post<Project>(`${BASE}/projects`, dto);
+        return data;
+    },
+
+    update: async (id: string, dto: Partial<CreateProjectDto>): Promise<Project> => {
+        const { data } = await axios.put<Project>(`${BASE}/projects/${id}`, dto);
+        return data;
+    },
+
+    remove: async (id: string): Promise<void> => {
+        await axios.delete(`${BASE}/projects/${id}`);
+    },
+};
+```
+
+Services throw — callers handle errors. Never swallow in a service.
+
+---
+
+## 6. Forms — React Hook Form (3+ fields)
+
+```typescript
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+type ProjectFormData = { title: string; location: string; status: string; };
+
+const form = useForm<ProjectFormData>();
+
+<Form {...form}>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+            control={form.control}
+            name="title"
+            rules={{ required: "Title is required" }}
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Title *</FormLabel>
+                    <FormControl>
+                        <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Saving..." : "Save"}
+        </Button>
+    </form>
+</Form>
+```
+
+Simple forms (1–2 fields): `useState` is fine.
+
+---
+
+## 7. UI Components (shadcn/ui)
+
+Always use shadcn/ui — never plain HTML equivalents:
+
+```typescript
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
+```
+
+Loading state pattern:
+```tsx
+{loading && (
+    <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+    </div>
+)}
+```
+
+Error state pattern:
+```tsx
+{error && (
+    <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+    </Alert>
+)}
+```
+
+Empty state pattern:
+```tsx
+{!loading && data.length === 0 && <p className="text-muted-foreground text-center py-8">No results found.</p>}
+```
+
+---
+
+## 8. Routing
+
+All routes in `src/constants/routes.ts`:
+
+```typescript
+export const ROUTES = {
+    HOME: "/",
+    POSITIONS: "/projects",
+    POSITION_DETAIL: "/projects/:id",
+    CANDIDATES: "/projects/:id/employees",
+} as const;
+```
+
+Navigation — always React Router, never `window.location`:
+
+```typescript
+import { useNavigate, useParams } from "react-router-dom";
+
+const navigate = useNavigate();
+navigate(ROUTES.POSITIONS);       // go to route
+navigate(-1);                      // go back
+```
+
+---
+
+## 9. Accessibility
+
+Required on all interactive elements:
+
+```tsx
+<Input aria-label="Search projects by title" />
+<Button aria-label="Delete employee" variant="destructive">Delete</Button>
+<img src={avatar} alt={`${employee.fullName} profile photo`} />
+```
+
+---
+
+## 10. Testing Standards
+
+### Unit tests — co-located with component
+
+```
+EmployeeCard.tsx
+EmployeeCard.test.tsx
+```
+
+### Playwright E2E — organized by feature
+
+```
+src/frontend/e2e/
+├── employees.spec.ts
+├── projects.spec.ts
+└── auth.spec.ts
+```
+
+### Test naming
+
+```typescript
+describe("EmployeeCard", () => {
+    it("renders employee name and current status badge", () => { ... });
+    it("calls onClick with the correct employee when clicked", () => { ... });
+    it("shows loading spinner while data is fetching", () => { ... });
+    it("displays error alert when API call fails", () => { ... });
+});
+```
+
+### Playwright — use semantic selectors (never CSS classes)
+
+```typescript
+// Good
+await page.getByRole("button", { name: /new project/i }).click();
+await page.getByLabel(/title/i).fill("Senior Engineer");
+await expect(page.getByText("Senior Engineer")).toBeVisible();
+
+// Never
+await page.locator(".btn-primary").click();
+await page.locator("#title-input").fill("Senior Engineer");
+```
+
+### Use `data-testid` only when no semantic selector is available.
+
+---
+
+## 11. Performance
+
+- `React.lazy` + `Suspense` for route-level code splitting
+- `useCallback` for functions passed as props to memoized children
+- `useMemo` for expensive derived values (not for every calculation)
+- `React.memo` for components that receive the same props frequently
+- Stabilize `useEffect` dependencies — never pass inline objects/arrays
+
+---
+
+## 12. Environment Variables
+
+```bash
+REACT_APP_API_URL=http://localhost:3000
+REACT_APP_ENV=development
+```
+
+Always prefixed with `REACT_APP_`. Never hardcode URLs. Never commit `.env`.
+
+---
+
+## 13. Branch Naming
+
+Append `-frontend` to avoid conflicts with backend branches:
+```
+feature/SCRUM-42-employee-search-frontend
+bugfix/SCRUM-99-fix-date-picker-frontend
+```
+
+---
+
+## 14. Development Scripts
+
+```bash
+npm start               # Dev server (port 3001)
+npm test                # Unit tests (Vitest)
+npm run build           # Production build
+npx playwright test     # Playwright E2E headless (CI)
+npx playwright test --ui # Playwright interactive UI
+npm run typecheck       # tsc --noEmit
+npm run lint            # ESLint
+```
+
+---
+
+## Anti-Patterns
+
+These patterns are **never acceptable**. The AI MUST reject, refactor, or flag them when encountered.
+
+| Pattern | Why | Fix |
+|---|---|---|
+| Direct state mutation in Zustand/React | React won't detect change; stale UI | `set(state => ({ ...state, field: value }))` |
+| `useEffect` for data fetching without cleanup | Memory leaks; stale closures | React Query / SWR, or cleanup function |
+| Prop drilling more than 2 levels | Tight coupling; refactor magnifier | Zustand store or Context |
+| Business logic in components | Untestable; violates SRP | Custom hook or service layer |
+| `console.log` left in production | Leaked in bundle; no log levels | Remove or use structured logging |
+| Inline styles in JSX | Hard to maintain; no theming | CSS modules or Tailwind classes |
+| Missing `key` prop in mapped lists | React reconciliation bugs, performance issues | Unique stable `key` (not array index) |

@@ -1,0 +1,26 @@
+---
+description: Backend DDD standards — applied when editing backend source files
+globs: ["src/backend/src/**/*.ts"]
+alwaysApply: false
+---
+
+# Backend Standards (lazy-loaded)
+
+Full standards: `.hive/standards/backend.mdc`
+
+## Quick reference — layer rules
+
+```
+domain/         → entities, value objects, repository interfaces. NO Prisma, NO Express.
+application/    → use cases, services (orchestrate only, no business logic).
+infrastructure/ → Prisma queries, external API clients. Implements domain interfaces.
+presentation/   → thin controllers. Parse HTTP, call service, format response. NO logic.
+```
+
+## Critical rules
+
+- Monetary fields: `Decimal` (`@db.Decimal(15,4)`) — never `Float`
+- Time fields: `Int` minutes — never `Float` hours
+- Repository interface lives in `domain/`, implementation in `infrastructure/`
+- Services never import Prisma directly
+- Controllers never contain business logic

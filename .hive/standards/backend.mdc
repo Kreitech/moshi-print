@@ -1,0 +1,465 @@
+# Standards: Backend (node-react-prisma stack)
+> Extends `core/standards/core.mdc`. Read core first.
+> Stack: Node.js · TypeScript strict · Express · Prisma · PostgreSQL · Jest
+
+---
+
+## 1. Project Structure
+
+```
+src/backend/src/
+├── domain/
+│   ├── models/          # Entities, Value Objects, Aggregates
+│   └── repositories/    # Repository interfaces (IEmployeeRepository, etc.)
+├── application/
+│   ├── services/        # Business logic orchestration
+│   └── validator.ts     # Centralized input validation
+├── presentation/
+│   └── controllers/     # Thin HTTP handlers — delegate to services
+├── infrastructure/
+│   ├── logger.ts        # Structured logger (never console.log)
+│   └── prismaClient.ts  # Prisma singleton
+├── routes/              # Express route definitions
+├── middleware/          # Auth, error handler, rate limiter
+├── index.ts             # App entry point (Express)
+└── lambda.ts            # AWS Lambda handler (serverless-http wrapper)
+```
+
+---
+
+## 2. DDD Layer Rules
+
+### Layer responsibilities (never cross these boundaries)
+
+| Layer | Allowed | Forbidden |
+|---|---|---|
+| **Domain** | Entities, Value Objects, domain logic, repository *interfaces* | Prisma imports, Express imports, any I/O |
+| **Application** | Orchestrate domain objects, call repositories, validate inputs | Business logic (belongs in domain), direct Prisma calls |
+| **Infrastructure** | Prisma queries, external API clients, logger setup | Business logic, HTTP concerns |
+| **Presentation** | Parse HTTP request, call application service, format response | Business logic, direct Prisma, domain logic |
+
+### Domain Entity pattern
+
+Domain entities contain business logic only — **no Prisma imports, no I/O**.
+Persistence is handled by repository implementations in the infrastructure layer.
+
+```typescript
+// domain/models/Employee.ts — NO Prisma imports here
+type EmployeeProps = {
+    id?: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    departments: Department[];
+};
+
+export class Employee {
+    constructor(private readonly props: EmployeeProps) {}
+
+    get id(): number | undefined { return this.props.id; }
+    get firstName(): string { return this.props.firstName; }
+    get lastName(): string { return this.props.lastName; }
+    get email(): string { return this.props.email; }
+    get departments(): Department[] { return [...this.props.departments]; }
+
+    changeEmail(newEmail: string): void {
+        if (!EmailVO.isValid(newEmail)) throw new ValidationError('Invalid email');
+        this.props.email = newEmail;
+    }
+
+    addDepartment(department: Department): void {
+        if (this.props.departments.some(d => d.id === department.id)) {
+            throw new ConflictError('Employee already in this department');
+        }
+        this.props.departments.push(department);
+    }
+}
+```
+
+### Infrastructure repository pattern (implements domain interface)
+
+```typescript
+// infrastructure/repositories/PrismaEmployeeRepository.ts
+import { prisma } from '../prismaClient';
+import type { IEmployeeRepository } from '../../domain/repositories/IEmployeeRepository';
+import { EmployeeMapper } from '../mappers/EmployeeMapper';
+
+export class PrismaEmployeeRepository implements IEmployeeRepository {
+    async findById(id: number): Promise<Employee | null> {
+        const data = await prisma.employee.findUnique({
+            where: { id },
+            include: { departments: true }
+        });
+        return data ? EmployeeMapper.toDomain(data) : null;
+    }
+
+    async findByEmail(email: string): Promise<Employee | null> {
+        const data = await prisma.employee.findUnique({
+            where: { email },
+            include: { departments: true }
+        });
+        return data ? EmployeeMapper.toDomain(data) : null;
+    }
+
+    async save(employee: Employee): Promise<Employee> {
+        const data = EmployeeMapper.toPrisma(employee);
+        const saved = employee.id
+            ? await prisma.employee.update({ where: { id: employee.id }, data })
+            : await prisma.employee.create({ data });
+        return EmployeeMapper.toDomain(saved);
+    }
+
+    async list(filter: EmployeeFilter): Promise<[Employee[], number]> {
+        const [records, total] = await Promise.all([
+            prisma.employee.findMany({ where: filter.toWhere(), skip: filter.offset, take: filter.limit, include: { departments: true } }),
+            prisma.employee.count({ where: filter.toWhere() }),
+        ]);
+        return [records.map(EmployeeMapper.toDomain), total];
+    }
+}
+```
+
+### Repository interface pattern (domain layer)
+
+```typescript
+// domain/repositories/IEmployeeRepository.ts
+export interface IEmployeeRepository {
+    findById(id: number): Promise<Employee | null>;
+    findByEmail(email: string): Promise<Employee | null>;
+    save(employee: Employee): Promise<Employee>;
+    list(filter: EmployeeFilter): Promise<[Employee[], number]>;
+}
+```
+
+### Application service pattern
+
+Services receive repositories via constructor injection — never import Prisma directly.
+
+```typescript
+// application/services/EmployeeService.ts
+export class EmployeeService {
+    constructor(private readonly employeeRepo: IEmployeeRepository) {}
+
+    async create(data: CreateEmployeeInput): Promise<Employee> {
+        // 1. Validate input
+        const validated = validateEmployeeData(data);
+
+        // 2. Check business rules via repository
+        const existing = await this.employeeRepo.findByEmail(validated.email);
+        if (existing) throw new ConflictError('Email already registered');
+
+        // 3. Create domain entity and persist via repository
+        const employee = new Employee(validated);
+        return this.employeeRepo.save(employee);
+    }
+}
+```
+
+### Controller pattern (thin — no logic)
+
+```typescript
+// presentation/controllers/employeeController.ts
+export class EmployeeController {
+    constructor(private readonly employeeService: EmployeeService) {}
+
+    create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const employee = await this.employeeService.create(req.body);
+            res.status(201).json({ success: true, data: employee });
+        } catch (error) {
+            next(error);
+        }
+    };
+}
+```
+
+---
+
+## 3. TypeScript Rules
+
+- Strict mode always on (`tsconfig.json`: `"strict": true`)
+- No `any` — use `unknown` and narrow, or define the type
+- No non-null assertion (`!`) — handle nullability explicitly
+- Explicit return types on all exported functions
+- Use interfaces for contracts (repository, service inputs), type aliases for unions and DTOs
+
+---
+
+## 4. Validation Pattern
+
+All inputs validated at the application layer via `validator.ts` before reaching domain logic:
+
+```typescript
+// application/validator.ts
+export function validateEmployeeData(data: unknown): CreateEmployeeInput {
+    // Use zod, joi, or manual validation
+    if (!data || typeof data !== 'object') throw new ValidationError('Invalid input');
+    const d = data as Record<string, unknown>;
+    if (!d.firstName || typeof d.firstName !== 'string') {
+        throw new ValidationError('firstName is required and must be a string');
+    }
+    // ... validate all fields
+    return d as CreateEmployeeInput;
+}
+```
+
+---
+
+## 5. Error Handling
+
+Custom error classes in `domain/errors/`:
+
+```typescript
+export class NotFoundError extends Error {
+    readonly statusCode = 404;
+    readonly code = 'NOT_FOUND';
+    constructor(resource: string, id: string | number) {
+        super(`${resource} with id '${id}' not found`);
+        this.name = 'NotFoundError';
+    }
+}
+
+export class ConflictError extends Error {
+    readonly statusCode = 409;
+    readonly code = 'CONFLICT';
+}
+
+export class ValidationError extends Error {
+    readonly statusCode = 400;
+    readonly code = 'VALIDATION_ERROR';
+}
+```
+
+Global error middleware maps these to HTTP responses:
+
+```typescript
+// middleware/errorHandler.ts
+app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+    const statusCode = (error as any).statusCode ?? 500;
+    const code = (error as any).code ?? 'INTERNAL_ERROR';
+    logger.error('Request failed', { error: error.message, path: req.path });
+    res.status(statusCode).json({ success: false, error: { message: error.message, code } });
+});
+```
+
+HTTP status mapping:
+
+| Situation | Code |
+|---|---|
+| Success GET/PUT/PATCH | 200 |
+| Created POST | 201 |
+| Validation error | 400 |
+| Unauthorized | 401 |
+| Forbidden | 403 |
+| Not found | 404 |
+| Conflict (duplicate) | 409 |
+| Server error | 500 |
+
+---
+
+## 6. API Design
+
+```
+GET    /resources           → list (paginated: ?page=1&pageSize=20)
+GET    /resources/:id       → single resource
+POST   /resources           → create (201)
+PUT    /resources/:id       → full update
+PATCH  /resources/:id       → partial update
+DELETE /resources/:id       → delete (204 no content)
+```
+
+Response envelope:
+
+```json
+// Collection
+{ "success": true, "data": [...], "meta": { "total": 100, "page": 1, "pageSize": 20 } }
+
+// Single
+{ "success": true, "data": { ... } }
+
+// Error
+{ "success": false, "error": { "message": "...", "code": "ERROR_CODE" } }
+```
+
+---
+
+## 7. Database (Prisma)
+
+- Migrations only via Prisma — never alter tables manually
+- Every model has `id`, `createdAt`, `updatedAt`
+- Soft deletes via `deletedAt` for business-critical entities
+- All foreign keys declared in schema
+- Indexes on all FK fields and frequently-queried fields
+- No raw SQL unless Prisma cannot express the query
+
+```bash
+npx prisma migrate dev --name descriptive_name   # development
+npx prisma migrate deploy                         # production
+npm run prisma:generate                           # after schema changes
+npx prisma db seed                                # seed data
+```
+
+Avoid N+1 — use `include` for relations:
+
+```typescript
+// Good
+const employee = await prisma.employee.findUnique({
+    where: { id },
+    include: { departments: true, workHistorys: true }
+});
+
+// Bad — N+1
+const employee = await prisma.employee.findUnique({ where: { id } });
+const departments = await prisma.department.findMany({ where: { employeeId: id } });
+```
+
+---
+
+## 8. Testing Standards
+
+### Coverage threshold: 90% (branches, functions, lines, statements)
+
+### Test file naming and location
+```
+src/backend/src/domain/models/__tests__/Employee.test.ts
+src/backend/src/application/services/__tests__/employeeService.test.ts
+src/backend/src/presentation/controllers/__tests__/employeeController.test.ts
+```
+
+### Test structure template
+
+```typescript
+describe('EmployeeService - createEmployee', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should create employee when all inputs are valid', async () => {
+        // Arrange
+        const input = { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' };
+        (Employee.findOneByEmail as jest.Mock).mockResolvedValue(null);
+        const savedEmployee = new Employee({ id: 1, ...input });
+        jest.spyOn(Employee.prototype, 'save').mockResolvedValue(savedEmployee);
+
+        // Act
+        const result = await createEmployee(input);
+
+        // Assert
+        expect(result.email).toBe('jane@example.com');
+        expect(Employee.prototype.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw ConflictError when email already exists', async () => {
+        // Arrange
+        (Employee.findOneByEmail as jest.Mock).mockResolvedValue(new Employee({ id: 1 }));
+
+        // Act & Assert
+        await expect(createEmployee({ email: 'jane@example.com' }))
+            .rejects.toThrow(ConflictError);
+    });
+});
+```
+
+### Test categories required per function
+1. Happy path — valid inputs, expected output
+2. Validation errors — missing/invalid fields
+3. Not found — entity doesn't exist
+4. Conflicts — duplicate data
+5. Server errors — DB failure
+6. Edge cases — empty arrays, boundary values
+
+### Mocking rules
+- Mock all Prisma calls in unit tests
+- Mock domain models in service tests
+- Mock services in controller tests
+- Use `jest.mock()` at file top for module-level mocks
+- `jest.clearAllMocks()` in `beforeEach`
+
+### Coverage reports
+```bash
+npm test                    # run all tests
+npm run test:coverage       # with coverage report
+# Reports saved to: coverage/YYYYMMDD-backend-coverage.md
+```
+
+---
+
+## 9. Logging
+
+Use the project logger — never `console.log` in production code:
+
+```typescript
+import { logger } from '../infrastructure/logger';
+
+logger.info('Employee created', { employeeId: employee.id });
+logger.error('Failed to create employee', { error: error.message, input });
+logger.warn('Deprecated endpoint called', { path: req.path });
+```
+
+Log levels: `error` (exceptions), `warn` (unexpected but handled), `info` (key events), `debug` (dev only)
+
+---
+
+## 10. Security
+
+- Validate and sanitize all inputs (validator.ts)
+- Rate limit all public endpoints
+- Never expose stack traces in production responses
+- Validate required env vars at startup — fail fast if missing
+- CORS configured explicitly — no wildcard `*` in production
+- Helmet middleware on all routes
+- No SQL injection possible via Prisma parameterization
+- Audit log for mutations on sensitive entities (employees, applications)
+
+---
+
+## 11. Serverless (AWS Lambda)
+
+Entry point: `src/lambda.ts`
+
+```typescript
+import serverless from 'serverless-http';
+import { app } from './index';
+const serverlessHandler = serverless(app);
+
+export const handler = async (event, context) => {
+    context.callbackWaitsForEmptyEventLoop = false;
+    return await serverlessHandler(event, context);
+};
+```
+
+Build: `npm run build:lambda`
+Deploy: Serverless Framework CLI via `serverless.yml`
+
+---
+
+## 12. Development Scripts
+
+```bash
+npm run dev              # Dev server with hot reload (nodemon)
+npm run build            # Production build
+npm test                 # All tests
+npm run test:coverage    # Tests + coverage report
+npm run test:watch       # Watch mode
+npm run lint             # ESLint
+npm run typecheck        # tsc --noEmit
+npm run prisma:generate  # Regenerate Prisma client
+npx prisma migrate dev   # Create and apply migration
+npx prisma db seed       # Seed database
+```
+
+---
+
+## Anti-Patterns
+
+These patterns are **never acceptable**. The AI MUST reject, refactor, or flag them when encountered.
+
+| Pattern | Why | Fix |
+|---|---|---|
+| `any` type in TypeScript | Defeats type safety; runtime errors | Explicit type or `unknown` with narrowing |
+| Business logic in route handlers / controllers | Untestable without HTTP setup | Move to application service |
+| Prisma calls outside the repository layer | Leaks ORM dependency into business logic | Repository pattern wrapping Prisma |
+| `console.log` in production code | No log levels, no structure, leaked in client bundles | `logger.info()` / `logger.error()` |
+| Unhandled promise rejections (floating `.then()` / `await` without `try/catch`) | Silent crashes in Node.js | Always `await` with `try/catch` or `.catch()` |
+| Cross-domain direct imports (`import { UserRepo } from '../../auth/...'`) | Violates bounded contexts | Expose through interface/service boundary |
+| Missing `zod` validation on user input | Type system doesn't protect at runtime | Validate at controller boundary with zod |

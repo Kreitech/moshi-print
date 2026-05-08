@@ -1,0 +1,40 @@
+---
+description: HIVE framework — auto-detected on session start, applied to all files
+globs:
+alwaysApply: true
+---
+
+# HIVE Detected
+
+This project uses **HIVE** (AI-Native Software Factory framework).
+
+## Session start (run once when this rule fires)
+
+1. Read `AGENTS.md` — universal rules and authority hierarchy
+2. Read `.hive/AGENTS.local.md` — project config (stack, ticket tool, autonomy, persona, active profile)
+3. Check `.hive/sessions/*_state.json` — resume any interrupted pipeline
+4. Call `bash .hive/scripts/hive-memory.sh context` — restore cross-session memory
+5. Print: `[HIVE] {project.name} · {stack} · {autonomy.level} · profile: {active_profile}`
+
+If `.hive/AGENTS.local.md` has TODO items → warn: "HIVE not fully configured. Run validate-setup.sh."
+
+## Non-negotiable rules (always apply)
+
+- **TDD first**: tests before implementation. No exceptions.
+- **English only**: all code, comments, commits, docs, ticket text.
+- **Architecture**: follow the layer rules defined in `.hive/standards/backend.mdc` (stack-specific).
+- **No `any` type**: use `unknown` and narrow, or define the type.
+- **No untyped money**: all monetary values use `Decimal`, never `Float`.
+- **Time in minutes**: store as `Int` minutes. Convert to HH:MM only in UI.
+- **Soft delete**: never hard-delete business entities. Use `deletedAt`.
+- **Audit trail**: every mutation on critical entities writes to `AuditLog`.
+- **Functions ≤ 20 lines**, params ≤ 3, nesting ≤ 2 levels.
+- **No debug logs in commits**: remove all `console.log` before committing.
+
+## Context loading (token-efficient)
+
+Load only what you need for the current task.
+The specific files to load per task are defined in `.hive/STACK.md` → Context Loading section.
+
+General rule: load only the agent for the current command + the standard for the current area.
+Do **not** load all agents and all standards for every task.

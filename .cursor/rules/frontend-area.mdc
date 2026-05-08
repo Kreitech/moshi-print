@@ -1,0 +1,19 @@
+---
+description: Frontend standards — applied when editing frontend source files
+globs: ["src/frontend/src/**/*.tsx", "src/frontend/src/**/*.ts"]
+alwaysApply: false
+---
+
+# Frontend Standards (lazy-loaded)
+
+Full standards: `.hive/standards/frontend.mdc`
+
+## Quick reference
+
+- Functional components only — no class components
+- Three-state pattern always: `loading` / `error` / `success`
+- No HTTP calls in components — use service layer
+- Use project UI library (see `.hive/standards/frontend.mdc`) — no raw HTML equivalents
+- All props typed — no implicit `any`
+- Accessibility: `aria-label` on all interactive elements
+- No anonymous default exports
