@@ -9,7 +9,7 @@ _Created: 2026-05-07 | Stack: node-react-prisma_
 ```yaml
 name: "Moshi Print"
 tech_lead: "Rafael"
-stack: "node-react-prisma"
+stack: "nextjs-supabase"
 ```
 
 ---
