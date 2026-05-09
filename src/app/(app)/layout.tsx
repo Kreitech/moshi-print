@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenant } from "@/lib/get-active-tenant";
+import { AppNav } from "@/components/features/app-nav";
 
 export default async function AppLayout({
   children,
@@ -17,5 +18,10 @@ export default async function AppLayout({
   const tenant = await getActiveTenant(supabase);
   if (!tenant) redirect("/onboarding");
 
-  return <div className="min-h-screen bg-background">{children}</div>;
+  return (
+    <div className="min-h-screen bg-background flex">
+      <AppNav />
+      <main className="flex-1 overflow-auto">{children}</main>
+    </div>
+  );
 }
