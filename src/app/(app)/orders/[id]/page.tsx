@@ -7,6 +7,7 @@ import { OrderDetail } from "@/components/features/orders/order-detail";
 import { OrderActions } from "@/components/features/orders/order-actions";
 import { FileList } from "@/components/features/files/file-list";
 import { ModelOptionsSection } from "@/components/features/orders/model-options-section";
+import { PrintJobsSection } from "@/components/features/orders/print-jobs-section";
 import { type OrderStatus } from "@/lib/order-transitions";
 
 export default async function OrderDetailPage({
@@ -27,7 +28,7 @@ export default async function OrderDetailPage({
 
   if (!order) notFound();
 
-  const [customerResult, filesResult, optionsResult, modelsResult] = await Promise.all([
+  const [customerResult, filesResult, optionsResult, modelsResult, jobsResult, versionsResult] = await Promise.all([
     order.customer_id
       ? supabase.from("customers").select("*").eq("id", order.customer_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -47,6 +48,16 @@ export default async function OrderDetailPage({
       .select("*")
       .eq("tenant_id", tenant!.id)
       .order("name"),
+    supabase
+      .from("print_jobs")
+      .select("*")
+      .eq("order_id", order.id)
+      .order("created_at"),
+    supabase
+      .from("model_versions")
+      .select("*, models!inner(name)")
+      .eq("models.tenant_id", tenant!.id)
+      .order("version_number"),
   ]);
 
   return (
@@ -78,12 +89,15 @@ export default async function OrderDetailPage({
         models={modelsResult.data ?? []}
       />
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Trabajos de impresion</h2>
-        <p className="text-sm text-muted-foreground">
-          Sin trabajos de impresion registrados.
-        </p>
-      </section>
+      <PrintJobsSection
+        orderId={order.id}
+        orderQuantity={order.quantity}
+        jobs={jobsResult.data ?? []}
+        modelVersions={(versionsResult.data ?? []).map((v: { id: string; tenant_id: string; model_id: string; version_number: number; notes: string | null; created_at: string; models: { name: string } }) => ({
+          ...v,
+          model_name: v.models.name,
+        }))}
+      />
     </div>
   );
 }
