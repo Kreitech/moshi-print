@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenant } from "@/lib/get-active-tenant";
 import { JobStatusActions } from "@/components/features/print-jobs/job-status-actions";
+import { SaveAsProfileButton } from "@/components/features/print-jobs/save-as-profile-button";
 import { FileList } from "@/components/features/files/file-list";
 import { type PrintAttempt } from "@/types/database";
 
@@ -186,6 +187,13 @@ export default async function PrintJobDetailPage({
                   <p className="text-xs text-red-700">Razon: {a.failure_reason}</p>
                 )}
                 {a.notes && <p className="text-xs">{a.notes}</p>}
+                {a.result === "success" && (
+                  <SaveAsProfileButton
+                    attemptId={a.id}
+                    savedProfileId={a.saved_as_profile_id}
+                    savedProfileName={a.saved_as_profile_id ? profileMap.get(a.saved_as_profile_id) : null}
+                  />
+                )}
                 <FileList
                   initialFiles={[]}
                   entityType="print_attempt"
