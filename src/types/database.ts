@@ -242,6 +242,123 @@ export type Database = {
           created_at?: string;
         };
       };
+      models: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          description: string | null;
+          status: "idea" | "researching" | "ready_to_test" | "tested_ok" | "needs_adjustments" | "production_ready" | "discarded";
+          tags: string[];
+          notes: string | null;
+          source_url: string | null;
+          source_platform: string | null;
+          license: string | null;
+          commercial_use_allowed: boolean | null;
+          attribution_required: boolean | null;
+          source_order_id: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          description?: string | null;
+          status?: "idea" | "researching" | "ready_to_test" | "tested_ok" | "needs_adjustments" | "production_ready" | "discarded";
+          tags?: string[];
+          notes?: string | null;
+          source_url?: string | null;
+          source_platform?: string | null;
+          license?: string | null;
+          commercial_use_allowed?: boolean | null;
+          attribution_required?: boolean | null;
+          source_order_id?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          name?: string;
+          description?: string | null;
+          status?: "idea" | "researching" | "ready_to_test" | "tested_ok" | "needs_adjustments" | "production_ready" | "discarded";
+          tags?: string[];
+          notes?: string | null;
+          source_url?: string | null;
+          source_platform?: string | null;
+          license?: string | null;
+          commercial_use_allowed?: boolean | null;
+          attribution_required?: boolean | null;
+          source_order_id?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      model_versions: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          model_id: string;
+          version_number: number;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          model_id: string;
+          version_number: number;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          model_id?: string;
+          version_number?: number;
+          notes?: string | null;
+          created_at?: string;
+        };
+      };
+      order_model_options: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          order_id: string;
+          model_id: string | null;
+          title: string;
+          source_url: string | null;
+          notes: string | null;
+          is_selected: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          order_id: string;
+          model_id?: string | null;
+          title: string;
+          source_url?: string | null;
+          notes?: string | null;
+          is_selected?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          order_id?: string;
+          model_id?: string | null;
+          title?: string;
+          source_url?: string | null;
+          notes?: string | null;
+          is_selected?: boolean;
+          created_at?: string;
+        };
+      };
       print_profiles: {
         Row: {
           id: string;
@@ -334,3 +451,7 @@ export type PrinterType = Printer["type"];
 export type Material = Database["public"]["Tables"]["materials"]["Row"];
 export type MaterialType = Material["type"];
 export type PrintProfile = Database["public"]["Tables"]["print_profiles"]["Row"];
+export type Model = Database["public"]["Tables"]["models"]["Row"];
+export type ModelStatus = Model["status"];
+export type ModelVersion = Database["public"]["Tables"]["model_versions"]["Row"];
+export type OrderModelOption = Database["public"]["Tables"]["order_model_options"]["Row"];
