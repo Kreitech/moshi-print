@@ -14,9 +14,13 @@ model Tenant {
   slug       String   @unique
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
-  members   TenantMember[]
-  customers Customer[]
-  orders    Order[]
+  members       TenantMember[]
+  customers     Customer[]
+  orders        Order[]
+  files         File[]
+  printers      Printer[]
+  materials     Material[]
+  print_profiles PrintProfile[]
 
   @@map("tenants")
 }
@@ -73,4 +77,88 @@ model Order {
   @@index([tenant_id, status])
   @@index([tenant_id, created_at])
   @@map("orders")
+}
+
+model File {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id   String   @db.Uuid
+  entity_type String
+  entity_id   String   @db.Uuid
+  name        String
+  file_type   String   @default("other")
+  gdrive_url  String?
+  notes       String?
+  uploaded_by String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, entity_type, entity_id])
+  @@map("files")
+}
+
+model Printer {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id  String        @db.Uuid
+  name       String
+  type       String        @default("FDM")
+  model_name String?
+  notes      String?
+  is_active  Boolean       @default(true)
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+
+  tenant   Tenant         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  profiles PrintProfile[]
+
+  @@index([tenant_id])
+  @@map("printers")
+}
+
+model Material {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id  String        @db.Uuid
+  name       String
+  brand      String?
+  type       String        @default("PLA")
+  color      String?
+  notes      String?
+  is_active  Boolean       @default(true)
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+
+  tenant   Tenant         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  profiles PrintProfile[]
+
+  @@index([tenant_id])
+  @@map("materials")
+}
+
+model PrintProfile {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id              String    @db.Uuid
+  name                   String
+  printer_id             String    @db.Uuid
+  material_id            String    @db.Uuid
+  notes                  String?
+  is_active              Boolean   @default(true)
+  layer_height_mm        Decimal?  @db.Decimal(4, 2)
+  nozzle_temp            Int?
+  bed_temp               Int?
+  print_speed_mm_s       Int?
+  wall_count             Int?
+  infill_pct             Int?
+  supports               Boolean?
+  brim_raft_skirt        String?
+  exposure_time_s        Decimal?  @db.Decimal(6, 2)
+  bottom_exposure_time_s Decimal?  @db.Decimal(6, 2)
+  lift_speed_mm_s        Decimal?  @db.Decimal(6, 2)
+  resin_layer_height_mm  Decimal?  @db.Decimal(4, 2)
+  supports_notes         String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant   Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  printer  Printer  @relation(fields: [printer_id], references: [id])
+  material Material @relation(fields: [material_id], references: [id])
+
+  @@index([tenant_id])
+  @@map("print_profiles")
 }
