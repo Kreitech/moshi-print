@@ -55,6 +55,41 @@ export type Database = {
           created_at?: string;
         };
       };
+      customers: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          email: string | null;
+          phone: string | null;
+          notes: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          email?: string | null;
+          phone?: string | null;
+          notes?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          name?: string;
+          email?: string | null;
+          phone?: string | null;
+          notes?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -65,3 +100,4 @@ export type Database = {
 export type Tenant = Database["public"]["Tables"]["tenants"]["Row"];
 export type TenantMember = Database["public"]["Tables"]["tenant_members"]["Row"];
 export type TenantRole = TenantMember["role"];
+export type Customer = Database["public"]["Tables"]["customers"]["Row"];
