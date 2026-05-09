@@ -11,6 +11,7 @@ import {
   selectModelOption,
   removeModelOption,
 } from "@/lib/actions/order-model-options";
+import { saveOptionToLibrary } from "@/lib/actions/save-to-library";
 import { type OrderModelOption, type Model } from "@/types/database";
 
 function AddOptionForm({
@@ -90,6 +91,7 @@ function OptionRow({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function handleSelect() {
     startTransition(async () => {
@@ -105,9 +107,18 @@ function OptionRow({
     });
   }
 
+  function handleSaveToLibrary() {
+    setSaveError(null);
+    startTransition(async () => {
+      const result = await saveOptionToLibrary(option.id, orderId);
+      if (result?.error) setSaveError(result.error);
+      else router.refresh();
+    });
+  }
+
   return (
     <div
-      className={`flex items-center justify-between rounded-md border px-4 py-2 text-sm transition-colors ${
+      className={`flex items-start justify-between rounded-md border px-4 py-2 text-sm transition-colors ${
         option.is_selected ? "border-emerald-400 bg-emerald-50" : ""
       }`}
     >
@@ -131,11 +142,23 @@ function OptionRow({
           )}
           {option.notes && <span>{option.notes}</span>}
         </div>
+        {saveError && <p className="text-xs text-destructive mt-1">{saveError}</p>}
       </div>
       <div className="flex gap-1 ml-2 shrink-0">
         {!option.is_selected && (
           <Button variant="ghost" size="sm" disabled={isPending} onClick={handleSelect}>
             Seleccionar
+          </Button>
+        )}
+        {!option.model_id && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={isPending}
+            onClick={handleSaveToLibrary}
+            title="Guardar en biblioteca de modelos"
+          >
+            📚 Guardar
           </Button>
         )}
         <Button
