@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { OrderDetail } from "@/components/features/orders/order-detail";
 import { OrderActions } from "@/components/features/orders/order-actions";
+import { FileList } from "@/components/features/files/file-list";
 import { type OrderStatus } from "@/lib/order-transitions";
 
 export default async function OrderDetailPage({
@@ -21,15 +22,17 @@ export default async function OrderDetailPage({
 
   if (!order) notFound();
 
-  let customer = null;
-  if (order.customer_id) {
-    const { data } = await supabase
-      .from("customers")
+  const [customerResult, filesResult] = await Promise.all([
+    order.customer_id
+      ? supabase.from("customers").select("*").eq("id", order.customer_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("files")
       .select("*")
-      .eq("id", order.customer_id)
-      .maybeSingle();
-    customer = data;
-  }
+      .eq("entity_type", "order")
+      .eq("entity_id", order.id)
+      .order("created_at"),
+  ]);
 
   return (
     <div className="p-6 space-y-6">
@@ -39,17 +42,19 @@ export default async function OrderDetailPage({
         </Button>
       </div>
 
-      <OrderDetail order={order} customer={customer} />
+      <OrderDetail order={order} customer={customerResult.data} />
       <OrderActions
         orderId={order.id}
         currentStatus={order.status as OrderStatus}
       />
 
-      <section className="space-y-2">
+      <section className="space-y-3">
         <h2 className="text-lg font-semibold">Archivos</h2>
-        <p className="text-sm text-muted-foreground">
-          Sin archivos adjuntos. Pega un enlace de Google Drive.
-        </p>
+        <FileList
+          initialFiles={filesResult.data ?? []}
+          entityType="order"
+          entityId={order.id}
+        />
       </section>
 
       <section className="space-y-2">
