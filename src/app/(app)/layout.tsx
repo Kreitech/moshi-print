@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenant } from "@/lib/get-active-tenant";
 
 export default async function AppLayout({
   children,
@@ -13,13 +14,8 @@ export default async function AppLayout({
 
   if (!user) redirect("/login");
 
-  const { data: membership } = await supabase
-    .from("tenant_members")
-    .select("tenant_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!membership) redirect("/onboarding");
+  const tenant = await getActiveTenant(supabase);
+  if (!tenant) redirect("/onboarding");
 
   return <div className="min-h-screen bg-background">{children}</div>;
 }
