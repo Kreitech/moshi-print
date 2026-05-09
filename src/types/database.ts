@@ -242,6 +242,94 @@ export type Database = {
           created_at?: string;
         };
       };
+      print_jobs: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          order_id: string;
+          model_version_id: string | null;
+          status: "pending" | "running" | "completed" | "failed";
+          quantity_planned: number;
+          quantity_completed: number;
+          quantity_failed: number;
+          notes: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          order_id: string;
+          model_version_id?: string | null;
+          status?: "pending" | "running" | "completed" | "failed";
+          quantity_planned: number;
+          quantity_completed?: number;
+          quantity_failed?: number;
+          notes?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          order_id?: string;
+          model_version_id?: string | null;
+          status?: "pending" | "running" | "completed" | "failed";
+          quantity_planned?: number;
+          quantity_completed?: number;
+          quantity_failed?: number;
+          notes?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      print_attempts: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          print_job_id: string;
+          printer_id: string;
+          material_id: string;
+          print_profile_id: string | null;
+          result: "success" | "failure" | "partial";
+          duration_min: number | null;
+          notes: string | null;
+          failure_reason: string | null;
+          saved_as_profile_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          print_job_id: string;
+          printer_id: string;
+          material_id: string;
+          print_profile_id?: string | null;
+          result: "success" | "failure" | "partial";
+          duration_min?: number | null;
+          notes?: string | null;
+          failure_reason?: string | null;
+          saved_as_profile_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          print_job_id?: string;
+          printer_id?: string;
+          material_id?: string;
+          print_profile_id?: string | null;
+          result?: "success" | "failure" | "partial";
+          duration_min?: number | null;
+          notes?: string | null;
+          failure_reason?: string | null;
+          saved_as_profile_id?: string | null;
+          created_at?: string;
+        };
+      };
       models: {
         Row: {
           id: string;
@@ -451,6 +539,10 @@ export type PrinterType = Printer["type"];
 export type Material = Database["public"]["Tables"]["materials"]["Row"];
 export type MaterialType = Material["type"];
 export type PrintProfile = Database["public"]["Tables"]["print_profiles"]["Row"];
+export type PrintJob = Database["public"]["Tables"]["print_jobs"]["Row"];
+export type PrintJobStatus = PrintJob["status"];
+export type PrintAttempt = Database["public"]["Tables"]["print_attempts"]["Row"];
+export type PrintAttemptResult = PrintAttempt["result"];
 export type Model = Database["public"]["Tables"]["models"]["Row"];
 export type ModelStatus = Model["status"];
 export type ModelVersion = Database["public"]["Tables"]["model_versions"]["Row"];
