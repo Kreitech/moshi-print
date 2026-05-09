@@ -54,3 +54,33 @@ export async function createCustomer(formData: FormData) {
 
   redirect(`/customers/${customer.id}`);
 }
+
+export async function updateCustomer(id: string, formData: FormData) {
+  const raw = {
+    name: (formData.get("name") as string)?.trim(),
+    email: (formData.get("email") as string)?.trim(),
+    phone: (formData.get("phone") as string)?.trim(),
+    notes: (formData.get("notes") as string)?.trim(),
+  };
+
+  const parsed = customerSchema.safeParse(raw);
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message;
+    return { error: message ?? "Datos inválidos." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customers")
+    .update({
+      name: parsed.data.name,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      notes: parsed.data.notes || null,
+    })
+    .eq("id", id);
+
+  if (error) return { error: "No se pudo guardar los cambios." };
+
+  return { success: true };
+}
