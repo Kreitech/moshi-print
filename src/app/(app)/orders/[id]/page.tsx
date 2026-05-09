@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { OrderDetail } from "@/components/features/orders/order-detail";
+import { OrderActions } from "@/components/features/orders/order-actions";
+import { type OrderStatus } from "@/lib/order-transitions";
 
 export default async function OrderDetailPage({
   params,
@@ -38,6 +40,10 @@ export default async function OrderDetailPage({
       </div>
 
       <OrderDetail order={order} customer={customer} />
+      <OrderActions
+        orderId={order.id}
+        currentStatus={order.status as OrderStatus}
+      />
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Archivos</h2>
