@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { signInWithPassword, signInWithMagicLink } from "@/lib/actions/auth";
+import { signInWithPassword, signInWithMagicLink, signUpWithPassword } from "@/lib/actions/auth";
 
-type Mode = "password" | "magic-link";
+type Mode = "password" | "signup" | "magic-link";
 
 export function LoginForm() {
   const [mode, setMode] = useState<Mode>("password");
@@ -21,7 +21,11 @@ export function LoginForm() {
 
     startTransition(async () => {
       const action =
-        mode === "password" ? signInWithPassword : signInWithMagicLink;
+        mode === "password"
+          ? signInWithPassword
+          : mode === "signup"
+            ? signUpWithPassword
+            : signInWithMagicLink;
       const result = await action(formData);
 
       if (result?.error) setError(result.error);
@@ -46,7 +50,7 @@ export function LoginForm() {
             />
           </div>
 
-          {mode === "password" && (
+          {(mode === "password" || mode === "signup") && (
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <Input
@@ -54,7 +58,8 @@ export function LoginForm() {
                 name="password"
                 type="password"
                 required
-                autoComplete="current-password"
+                minLength={mode === "signup" ? 8 : undefined}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
               />
             </div>
           )}
@@ -74,23 +79,54 @@ export function LoginForm() {
               ? "Cargando..."
               : mode === "password"
                 ? "Iniciar sesión"
-                : "Enviar enlace mágico"}
+                : mode === "signup"
+                  ? "Crear cuenta"
+                  : "Enviar enlace mágico"}
           </Button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full text-sm"
-            onClick={() => {
-              setMode(mode === "password" ? "magic-link" : "password");
-              setError(null);
-              setSuccess(null);
-            }}
-          >
-            {mode === "password"
-              ? "Prefiero recibir un enlace por correo"
-              : "Volver a iniciar sesión con contraseña"}
-          </Button>
+          {mode === "password" && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-sm"
+              onClick={() => { setMode("signup"); setError(null); setSuccess(null); }}
+            >
+              ¿No tienes cuenta? Regístrate
+            </Button>
+          )}
+
+          {mode === "signup" && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-sm"
+              onClick={() => { setMode("password"); setError(null); setSuccess(null); }}
+            >
+              Ya tengo cuenta — Iniciar sesión
+            </Button>
+          )}
+
+          {(mode === "password" || mode === "signup") && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-sm"
+              onClick={() => { setMode("magic-link"); setError(null); setSuccess(null); }}
+            >
+              Prefiero recibir un enlace por correo
+            </Button>
+          )}
+
+          {mode === "magic-link" && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-sm"
+              onClick={() => { setMode("password"); setError(null); setSuccess(null); }}
+            >
+              Volver a iniciar sesión con contraseña
+            </Button>
+          )}
         </CardFooter>
       </form>
     </Card>
