@@ -27,14 +27,27 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session — do not remove, required for Server Components
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
   const isAuthRoute =
-    pathname.startsWith("/login") || pathname.startsWith("/onboarding");
+    pathname.startsWith("/login") || pathname.startsWith("/onboarding") || pathname.startsWith("/auth/");
+
+  let user = null;
+  try {
+    // Refresh session — do not remove, required for Server Components
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // Corrupted session cookie — clear it and treat as unauthenticated
+    const response = isAuthRoute
+      ? NextResponse.next({ request })
+      : NextResponse.redirect(new URL("/login", request.url));
+    request.cookies.getAll().forEach(({ name }) => {
+      if (name.includes("sb-") && name.includes("auth")) {
+        response.cookies.delete(name);
+      }
+    });
+    return response;
+  }
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
