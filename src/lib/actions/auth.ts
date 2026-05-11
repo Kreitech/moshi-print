@@ -11,7 +11,7 @@ export async function signInWithPassword(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: "Correo o contraseña incorrectos." };
+    return { error: error.message };
   }
 
   redirect("/dashboard");
@@ -60,7 +60,7 @@ export async function signInWithMagicLink(formData: FormData) {
   });
 
   if (error) {
-    return { error: "No se pudo enviar el enlace. Verifica tu correo." };
+    return { error: error.message };
   }
 
   return { success: "Enlace enviado. Revisa tu correo electrónico." };
