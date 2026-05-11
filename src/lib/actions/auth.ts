@@ -29,13 +29,18 @@ export async function signUpWithPassword(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
-    if (error.message.includes("already registered")) {
+    if (error.message.includes("already registered") || error.message.includes("User already registered")) {
       return { error: "Este correo ya está registrado. Intenta iniciar sesión." };
     }
-    return { error: "No se pudo crear la cuenta. Intenta nuevamente." };
+    return { error: `No se pudo crear la cuenta: ${error.message}` };
+  }
+
+  // Email confirmation required — no active session yet
+  if (!data.session) {
+    return { success: "Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión." };
   }
 
   redirect("/onboarding");
