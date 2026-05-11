@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+// redirect is kept for signUpWithPassword — signInWithPassword uses client-side redirect
 
 export async function signInWithPassword(formData: FormData) {
   const email = formData.get("email") as string;
@@ -14,7 +15,8 @@ export async function signInWithPassword(formData: FormData) {
     return { error: error.message };
   }
 
-  redirect("/dashboard");
+  // Return success and let the client redirect — avoids cookie loss on server redirect
+  return { redirect: "/dashboard" };
 }
 
 export async function signUpWithPassword(formData: FormData) {

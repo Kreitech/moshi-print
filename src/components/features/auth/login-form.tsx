@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -28,7 +30,11 @@ export function LoginForm() {
             : signInWithMagicLink;
       const result = await action(formData);
 
-      if (result?.error) setError(result.error);
+      if (result?.error) { setError(result.error); return; }
+      if (result && "redirect" in result && result.redirect) {
+        router.push(result.redirect);
+        return;
+      }
       if (result && "success" in result && result.success)
         setSuccess(result.success);
     });
