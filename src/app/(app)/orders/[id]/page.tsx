@@ -28,7 +28,7 @@ export default async function OrderDetailPage({
 
   if (!order) notFound();
 
-  const [customerResult, filesResult, optionsResult, modelsResult, jobsResult, versionsResult] = await Promise.all([
+  const [customerResult, filesResult, storageResult, optionsResult, modelsResult, jobsResult, versionsResult] = await Promise.all([
     order.customer_id
       ? supabase.from("customers").select("*").eq("id", order.customer_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -39,15 +39,17 @@ export default async function OrderDetailPage({
       .eq("entity_id", order.id)
       .order("created_at"),
     supabase
+      .from("tenant_storage_connections")
+      .select("id")
+      .eq("tenant_id", tenant!.id)
+      .eq("provider", "google_drive")
+      .maybeSingle(),
+    supabase
       .from("order_model_options")
       .select("*")
       .eq("order_id", order.id)
       .order("created_at"),
-    supabase
-      .from("models")
-      .select("*")
-      .eq("tenant_id", tenant!.id)
-      .order("name"),
+    supabase.from("models").select("*").eq("tenant_id", tenant!.id).order("name"),
     supabase
       .from("print_jobs")
       .select("*")
@@ -80,6 +82,7 @@ export default async function OrderDetailPage({
           initialFiles={filesResult.data ?? []}
           entityType="order"
           entityId={order.id}
+          hasStorage={!!storageResult.data}
         />
       </section>
 

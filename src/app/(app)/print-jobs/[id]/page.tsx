@@ -25,12 +25,14 @@ const RESULT_COLORS: Record<string, string> = {
   success: "border-green-300 bg-green-50",
   failure: "border-red-300 bg-red-50",
   partial: "border-yellow-300 bg-yellow-50",
+  draft: "border-slate-200 bg-slate-50",
 };
 
 const RESULT_LABELS: Record<string, string> = {
   success: "Exitoso",
   failure: "Fallido",
   partial: "Parcial",
+  draft: "En progreso",
 };
 
 export default async function PrintJobDetailPage({
@@ -51,7 +53,7 @@ export default async function PrintJobDetailPage({
 
   if (!job) notFound();
 
-  const [orderRes, attemptsRes, versionRes, printersRes, materialsRes, profilesRes] =
+  const [orderRes, attemptsRes, versionRes, printersRes, materialsRes, profilesRes, storageRes] =
     await Promise.all([
       supabase.from("orders").select("id, title").eq("id", job.order_id).maybeSingle(),
       supabase
@@ -69,12 +71,19 @@ export default async function PrintJobDetailPage({
       supabase.from("printers").select("id, name").eq("tenant_id", tenant!.id),
       supabase.from("materials").select("id, name").eq("tenant_id", tenant!.id),
       supabase.from("print_profiles").select("id, name").eq("tenant_id", tenant!.id),
+      supabase
+        .from("tenant_storage_connections")
+        .select("id")
+        .eq("tenant_id", tenant!.id)
+        .eq("provider", "google_drive")
+        .maybeSingle(),
     ]);
 
   const printerMap = new Map((printersRes.data ?? []).map((p: { id: string; name: string }) => [p.id, p.name]));
   const materialMap = new Map((materialsRes.data ?? []).map((m: { id: string; name: string }) => [m.id, m.name]));
   const profileMap = new Map((profilesRes.data ?? []).map((p: { id: string; name: string }) => [p.id, p.name]));
   const attempts = (attemptsRes.data ?? []) as PrintAttempt[];
+  const hasStorage = !!storageRes.data;
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
@@ -158,23 +167,33 @@ export default async function PrintJobDetailPage({
               <div
                 key={a.id}
                 className={`rounded-lg border-2 p-4 space-y-2 text-sm ${
-                  RESULT_COLORS[a.result] ?? "bg-muted"
+                  RESULT_COLORS[a.result ?? "draft"] ?? "bg-muted"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">
-                      {RESULT_LABELS[a.result] ?? a.result}
+                      {RESULT_LABELS[a.result ?? "draft"] ?? a.result}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {new Date(a.created_at).toLocaleDateString("es-UY")}
                     </span>
                   </div>
-                  {a.duration_min && (
-                    <span className="text-xs text-muted-foreground">
-                      {a.duration_min} min
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {a.duration_min && (
+                      <span className="text-xs text-muted-foreground">
+                        {a.duration_min} min
+                      </span>
+                    )}
+                    {!a.result && (
+                      <Link
+                        href={`/print-jobs/${id}/attempts/${a.id}/edit`}
+                        className="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-muted transition-colors"
+                      >
+                        Editar
+                      </Link>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span>🖨 {printerMap.get(a.printer_id) ?? "—"}</span>
@@ -194,11 +213,14 @@ export default async function PrintJobDetailPage({
                     savedProfileName={a.saved_as_profile_id ? profileMap.get(a.saved_as_profile_id) : null}
                   />
                 )}
-                <FileList
-                  initialFiles={[]}
-                  entityType="print_attempt"
-                  entityId={a.id}
-                />
+                {a.result && (
+                  <FileList
+                    initialFiles={[]}
+                    entityType="print_attempt"
+                    entityId={a.id}
+                    hasStorage={hasStorage}
+                  />
+                )}
               </div>
             ))}
           </div>

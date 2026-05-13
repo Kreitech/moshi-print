@@ -1,8 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { redirect } from "next/navigation";
+import { getActiveTenant } from "@/lib/get-active-tenant";
 
 function slugify(name: string): string {
   return name
@@ -67,8 +68,49 @@ export async function createTenant(formData: FormData) {
   });
 
   if (memberError) {
+    console.error("tenant_members insert error:", memberError);
     return { error: "No se pudo crear el espacio de trabajo." };
   }
 
-  redirect("/dashboard");
+  return { redirect: "/dashboard" };
+}
+
+export async function updateTenant(formData: FormData) {
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) return { error: "El nombre es requerido." };
+
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado." };
+
+  const tenant = await getActiveTenant(supabase);
+  if (!tenant) return { error: "Sin espacio de trabajo." };
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("role")
+    .eq("tenant_id", tenant.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return { error: "Sin permisos." };
+  }
+
+  const service = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error } = await service
+    .from("tenants")
+    .update({ name })
+    .eq("id", tenant.id);
+
+  if (error) return { error: "Error al actualizar el espacio de trabajo." };
+
+  revalidatePath("/settings/workspace");
+  return { success: true };
 }

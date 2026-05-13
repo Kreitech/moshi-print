@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { type FileRecord, type FileEntityType } from "@/types/database";
-import { FileReferenceForm } from "./file-reference-form";
+import { FileUploadForm } from "./file-upload-form";
 
-const FILE_TYPE_ICONS: Record<string, string> = {
+const CATEGORY_ICONS: Record<string, string> = {
   stl: "📦",
   image: "🖼️",
   gcode: "⚙️",
@@ -14,7 +14,7 @@ const FILE_TYPE_ICONS: Record<string, string> = {
   other: "📎",
 };
 
-const FILE_TYPE_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   stl: "STL",
   image: "Imagen",
   gcode: "G-Code",
@@ -24,23 +24,30 @@ const FILE_TYPE_LABELS: Record<string, string> = {
   other: "Otro",
 };
 
+function formatBytes(bytes: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function FileList({
   initialFiles,
   entityType,
   entityId,
+  hasStorage,
 }: {
   initialFiles: FileRecord[];
   entityType: FileEntityType;
   entityId: string;
+  hasStorage: boolean;
 }) {
   const [files, setFiles] = useState(initialFiles);
 
   return (
     <div className="space-y-3">
       {files.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Sin archivos adjuntos. Pega un enlace de Google Drive.
-        </p>
+        <p className="text-sm text-muted-foreground">Sin archivos adjuntos.</p>
       ) : (
         <ul className="space-y-2">
           {files.map((f) => (
@@ -49,11 +56,12 @@ export function FileList({
               className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span>{FILE_TYPE_ICONS[f.file_type] ?? "📎"}</span>
+                <span>{CATEGORY_ICONS[f.file_category] ?? "📎"}</span>
                 <div className="min-w-0">
-                  <p className="font-medium truncate">{f.name}</p>
+                  <p className="font-medium truncate">{f.file_name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {FILE_TYPE_LABELS[f.file_type] ?? f.file_type}
+                    {CATEGORY_LABELS[f.file_category] ?? f.file_category}
+                    {f.size_bytes ? ` · ${formatBytes(f.size_bytes)}` : ""}
                     {f.notes ? ` · ${f.notes}` : ""}
                   </p>
                 </div>
@@ -62,9 +70,9 @@ export function FileList({
                 <span className="text-xs text-muted-foreground">
                   {new Date(f.created_at).toLocaleDateString("es-UY")}
                 </span>
-                {f.gdrive_url && (
+                {f.web_view_link && (
                   <a
-                    href={f.gdrive_url}
+                    href={f.web_view_link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-blue-600 hover:underline whitespace-nowrap"
@@ -78,11 +86,20 @@ export function FileList({
         </ul>
       )}
 
-      <FileReferenceForm
-        entityType={entityType}
-        entityId={entityId}
-        onAdded={(f) => setFiles((prev) => [...prev, f])}
-      />
+      {hasStorage ? (
+        <FileUploadForm
+          entityType={entityType}
+          entityId={entityId}
+          onUploaded={(f) => setFiles((prev) => [...prev, f])}
+        />
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          <a href="/settings/storage" className="underline hover:text-foreground">
+            Conecta Google Drive
+          </a>{" "}
+          para adjuntar archivos.
+        </p>
+      )}
     </div>
   );
 }

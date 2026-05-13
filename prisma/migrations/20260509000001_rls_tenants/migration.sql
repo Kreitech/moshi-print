@@ -14,15 +14,11 @@ CREATE POLICY "tenants_select_own"
     )
   );
 
--- SELECT policy on tenant_members: user sees rows for their own tenants
+-- SELECT policy on tenant_members: user sees their own membership rows
 CREATE POLICY "tenant_members_select_own"
   ON "tenant_members"
   FOR SELECT
-  USING (
-    tenant_id IN (
-      SELECT tenant_id FROM tenant_members WHERE user_id = auth.uid()
-    )
-  );
+  USING (user_id = auth.uid());
 
 -- INSERT policy on tenant_members: only owner or admin of the target tenant can add members
 CREATE POLICY "tenant_members_insert_admin"

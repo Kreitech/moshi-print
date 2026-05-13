@@ -137,17 +137,59 @@ export type Database = {
           updated_at?: string;
         };
       };
+      tenant_storage_connections: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          provider: string;
+          access_token_enc: string;
+          refresh_token_enc: string;
+          token_expiry: string;
+          drive_folder_id: string;
+          drive_folder_url: string;
+          connected_by: string;
+          connected_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          provider?: string;
+          access_token_enc: string;
+          refresh_token_enc: string;
+          token_expiry: string;
+          drive_folder_id: string;
+          drive_folder_url: string;
+          connected_by: string;
+          connected_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          provider?: string;
+          access_token_enc?: string;
+          refresh_token_enc?: string;
+          token_expiry?: string;
+          drive_folder_id?: string;
+          drive_folder_url?: string;
+          connected_by?: string;
+          connected_at?: string;
+        };
+      };
       files: {
         Row: {
           id: string;
           tenant_id: string;
           entity_type: "order" | "model" | "model_version" | "print_job" | "print_attempt";
           entity_id: string;
-          name: string;
-          file_type: "stl" | "image" | "gcode" | "pdf" | "sliced" | "reference" | "other";
-          gdrive_url: string | null;
+          storage_connection_id: string | null;
+          drive_file_id: string | null;
+          file_name: string;
+          mime_type: string | null;
+          size_bytes: number | null;
+          file_category: string;
+          web_view_link: string | null;
           notes: string | null;
-          uploaded_by: string;
+          uploaded_by_user_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -155,11 +197,15 @@ export type Database = {
           tenant_id: string;
           entity_type: "order" | "model" | "model_version" | "print_job" | "print_attempt";
           entity_id: string;
-          name: string;
-          file_type?: "stl" | "image" | "gcode" | "pdf" | "sliced" | "reference" | "other";
-          gdrive_url?: string | null;
+          storage_connection_id?: string | null;
+          drive_file_id?: string | null;
+          file_name: string;
+          mime_type?: string | null;
+          size_bytes?: number | null;
+          file_category?: string;
+          web_view_link?: string | null;
           notes?: string | null;
-          uploaded_by: string;
+          uploaded_by_user_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -167,11 +213,15 @@ export type Database = {
           tenant_id?: string;
           entity_type?: "order" | "model" | "model_version" | "print_job" | "print_attempt";
           entity_id?: string;
-          name?: string;
-          file_type?: "stl" | "image" | "gcode" | "pdf" | "sliced" | "reference" | "other";
-          gdrive_url?: string | null;
+          storage_connection_id?: string | null;
+          drive_file_id?: string | null;
+          file_name?: string;
+          mime_type?: string | null;
+          size_bytes?: number | null;
+          file_category?: string;
+          web_view_link?: string | null;
           notes?: string | null;
-          uploaded_by?: string;
+          uploaded_by_user_id?: string | null;
           created_at?: string;
         };
       };
@@ -531,9 +581,9 @@ export type TenantRole = TenantMember["role"];
 export type Customer = Database["public"]["Tables"]["customers"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderUrgency = Order["urgency"];
+export type TenantStorageConnection = Database["public"]["Tables"]["tenant_storage_connections"]["Row"];
 export type FileRecord = Database["public"]["Tables"]["files"]["Row"];
 export type FileEntityType = FileRecord["entity_type"];
-export type FileType = FileRecord["file_type"];
 export type Printer = Database["public"]["Tables"]["printers"]["Row"];
 export type PrinterType = Printer["type"];
 export type Material = Database["public"]["Tables"]["materials"]["Row"];

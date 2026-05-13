@@ -21,7 +21,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen bg-background flex">
       <AppNav />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto pt-12 md:pt-0">{children}</main>
     </div>
   );
 }

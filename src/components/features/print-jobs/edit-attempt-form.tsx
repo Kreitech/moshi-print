@@ -5,30 +5,38 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { logPrintAttempt } from "@/lib/actions/print-attempts";
+import { updatePrintAttempt } from "@/lib/actions/print-attempts";
 
-type Selectable = { id: string; name: string };
-
-export function LogAttemptForm({
+export function EditAttemptForm({
+  attemptId,
   jobId,
-  printers,
-  materials,
-  profiles,
+  defaultResult,
+  defaultDurationMin,
+  defaultFailureReason,
+  defaultNotes,
+  printerName,
+  materialName,
+  profileName,
 }: {
+  attemptId: string;
   jobId: string;
-  printers: (Selectable & { type?: string })[];
-  materials: (Selectable & { type?: string })[];
-  profiles: Selectable[];
+  defaultResult: string | null;
+  defaultDurationMin: number | null;
+  defaultFailureReason: string | null;
+  defaultNotes: string | null;
+  printerName: string;
+  materialName: string;
+  profileName: string | null;
 }) {
   const router = useRouter();
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState(defaultResult ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
     setError(null);
     startTransition(async () => {
-      const res = await logPrintAttempt(jobId, formData);
+      const res = await updatePrintAttempt(attemptId, formData);
       if (res?.error) setError(res.error);
       else router.push(`/print-jobs/${jobId}`);
     });
@@ -36,50 +44,11 @@ export function LogAttemptForm({
 
   return (
     <form action={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Impresora *</Label>
-          <select
-            name="printer_id"
-            required
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
-          >
-            <option value="">Seleccionar...</option>
-            {printers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}{p.type ? ` (${p.type})` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Material *</Label>
-          <select
-            name="material_id"
-            required
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
-          >
-            <option value="">Seleccionar...</option>
-            {materials.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}{m.type ? ` (${m.type})` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        <Label className="text-xs">Perfil de impresion</Label>
-        <select
-          name="print_profile_id"
-          className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
-        >
-          <option value="">— Sin perfil</option>
-          {profiles.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+      <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm space-y-1">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Configuracion (solo lectura)</p>
+        <p>🖨 {printerName}</p>
+        <p>🧵 {materialName}</p>
+        {profileName && <p>⚙️ {profileName}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -99,7 +68,13 @@ export function LogAttemptForm({
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Duracion (min)</Label>
-          <Input name="duration_min" type="number" min="1" className="h-8 text-sm" />
+          <Input
+            name="duration_min"
+            type="number"
+            min="1"
+            defaultValue={defaultDurationMin ?? ""}
+            className="h-8 text-sm"
+          />
         </div>
       </div>
 
@@ -109,6 +84,7 @@ export function LogAttemptForm({
           <Input
             name="failure_reason"
             required
+            defaultValue={defaultFailureReason ?? ""}
             className="h-8 text-sm"
             placeholder="Ej: adhesion, warping, corte de luz..."
           />
@@ -117,14 +93,14 @@ export function LogAttemptForm({
 
       <div className="space-y-1">
         <Label className="text-xs">Notas</Label>
-        <Input name="notes" className="h-8 text-sm" />
+        <Input name="notes" defaultValue={defaultNotes ?? ""} className="h-8 text-sm" />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={isPending}>
-          {isPending ? "Guardando..." : result ? "Registrar intento" : "Guardar borrador"}
+          {isPending ? "Guardando..." : "Guardar cambios"}
         </Button>
         <Button
           type="button"

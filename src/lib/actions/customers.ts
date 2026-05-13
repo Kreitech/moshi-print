@@ -12,6 +12,27 @@ const customerSchema = z.object({
   notes: z.string().optional(),
 });
 
+export async function createCustomerQuick(name: string) {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return { error: "El nombre debe tener al menos 2 caracteres." };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado." };
+
+  const tenant = await getActiveTenant(supabase);
+  if (!tenant) return { error: "Sin espacio de trabajo." };
+
+  const { data: customer, error } = await supabase
+    .from("customers")
+    .insert({ tenant_id: tenant.id, name: trimmed, created_by: user.id })
+    .select("id, name")
+    .single();
+
+  if (error || !customer) return { error: "No se pudo crear el cliente." };
+  return { id: customer.id, name: customer.name };
+}
+
 export async function createCustomer(formData: FormData) {
   const raw = {
     name: (formData.get("name") as string)?.trim(),

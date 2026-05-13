@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenant } from "@/lib/get-active-tenant";
+import { SettingsNav } from "@/components/features/settings-nav";
 
 export default async function SettingsLayout({
   children,
@@ -47,5 +48,13 @@ export default async function SettingsLayout({
     );
   }
 
-  return <div>{children}</div>;
+  return (
+    <div className="p-6 space-y-6 max-w-3xl">
+      <div>
+        <h1 className="text-2xl font-bold">Configuración</h1>
+        <SettingsNav />
+      </div>
+      {children}
+    </div>
+  );
 }

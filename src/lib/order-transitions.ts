@@ -28,7 +28,7 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["researching", "ready_for_factory", "cancelled"],
   researching: ["pending_approval", "ready_for_factory", "cancelled"],
   pending_approval: ["ready_for_factory", "researching", "cancelled"],
-  ready_for_factory: ["cancelled"], // → printing is triggered by print job going running
+  ready_for_factory: ["printing", "cancelled"],
   printing: ["post_processing", "failed_or_reprint"],
   post_processing: ["ready_to_deliver"],
   ready_to_deliver: ["delivered"],

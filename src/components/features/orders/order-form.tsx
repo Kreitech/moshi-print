@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { createOrder } from "@/lib/actions/orders";
 import { type Customer } from "@/types/database";
+import { CustomerCombobox } from "./customer-combobox";
 
 const URGENCY_OPTIONS = [
   { value: "low", label: "Baja" },
@@ -49,19 +50,8 @@ export function OrderForm({ customers }: { customers: Customer[] }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customer_id">Cliente</Label>
-            <select
-              id="customer_id"
-              name="customer_id"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-            >
-              <option value="">Sin cliente</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <Label>Cliente</Label>
+            <CustomerCombobox customers={customers} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

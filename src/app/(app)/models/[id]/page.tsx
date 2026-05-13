@@ -36,7 +36,7 @@ export default async function ModelDetailPage({
   const supabase = await createClient();
   const tenant = await getActiveTenant(supabase);
 
-  const [modelRes, versionsRes, filesRes] = await Promise.all([
+  const [modelRes, versionsRes, filesRes, storageRes] = await Promise.all([
     supabase
       .from("models")
       .select("*")
@@ -54,6 +54,12 @@ export default async function ModelDetailPage({
       .eq("entity_type", "model")
       .eq("entity_id", id)
       .order("created_at"),
+    supabase
+      .from("tenant_storage_connections")
+      .select("id")
+      .eq("tenant_id", tenant!.id)
+      .eq("provider", "google_drive")
+      .maybeSingle(),
   ]);
 
   if (!modelRes.data) notFound();
@@ -173,6 +179,7 @@ export default async function ModelDetailPage({
           initialFiles={files}
           entityType="model"
           entityId={id}
+          hasStorage={!!storageRes.data}
         />
       </section>
     </div>
