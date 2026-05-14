@@ -14,6 +14,7 @@ const FACTORY_TRIGGER_STATUSES: OrderStatus[] = [
   "new",
   "researching",
   "pending_approval",
+  "failed_or_reprint",
 ];
 const TERMINAL_STATUSES: OrderStatus[] = ["delivered", "cancelled"];
 

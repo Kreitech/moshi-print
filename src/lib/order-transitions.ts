@@ -33,7 +33,7 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   post_processing: ["ready_to_deliver"],
   ready_to_deliver: ["delivered"],
   delivered: [],
-  failed_or_reprint: ["ready_for_factory"],
+  failed_or_reprint: ["ready_for_factory", "post_processing"],
   cancelled: [],
 };
 
