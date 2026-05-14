@@ -24,8 +24,10 @@ if [[ $PUSHING_TO_MAIN -eq 1 ]]; then
     echo -e "${CYAN}[pre-push]${NC} Pushing to main — running CI gate checks..."
     echo ""
 
-    # 1. Principle & structure check
-    if bash scripts/check-principles.sh; then
+    # 1. Principle & structure check (hive-core only — skip if script absent)
+    if [[ ! -f "scripts/check-principles.sh" ]]; then
+        echo -e "${CYAN}  ~ check-principles.sh not found — skipping${NC}"
+    elif bash scripts/check-principles.sh; then
         echo -e "${GREEN}  ✓ Principles OK${NC}"
     else
         echo -e "${RED}  ✗ Principles check failed${NC}" >&2
