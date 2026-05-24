@@ -1,5 +1,4 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -11,21 +10,26 @@ export async function GET(request: NextRequest) {
     | "magiclink"
     | "invite"
     | null;
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Recovery tokens go to the password update page; everything else goes to dashboard
+  const defaultNext = type === "recovery" ? "/update-password" : "/dashboard";
+  const next = searchParams.get("next") ?? defaultNext;
 
   if (token_hash && type) {
-    const cookieStore = await cookies();
+    // Build redirect first so cookies set during verifyOtp are attached to it,
+    // not lost on a separate response object.
+    const redirectResponse = NextResponse.redirect(`${origin}${next}`);
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return request.cookies.getAll();
           },
           setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              redirectResponse.cookies.set(name, value, options)
             );
           },
         },
@@ -34,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return redirectResponse;
     }
   }
 

@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { signInWithPassword, signInWithMagicLink, signUpWithPassword } from "@/lib/actions/auth";
+import { signInWithPassword, signInWithMagicLink, signUpWithPassword, sendPasswordRecovery } from "@/lib/actions/auth";
 
-type Mode = "password" | "signup" | "magic-link";
+type Mode = "password" | "signup" | "magic-link" | "forgot-password";
 
 export function LoginForm() {
   const [mode, setMode] = useState<Mode>("password");
@@ -27,7 +27,9 @@ export function LoginForm() {
           ? signInWithPassword
           : mode === "signup"
             ? signUpWithPassword
-            : signInWithMagicLink;
+            : mode === "forgot-password"
+              ? sendPasswordRecovery
+              : signInWithMagicLink;
       const result = await action(formData);
 
       if (result?.error) { setError(result.error); return; }
@@ -70,6 +72,18 @@ export function LoginForm() {
             </div>
           )}
 
+          {mode === "password" && (
+            <div className="text-right">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                onClick={() => { setMode("forgot-password"); setError(null); setSuccess(null); }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          )}
+
           {error && (
             <p className="text-sm font-medium text-destructive">{error}</p>
           )}
@@ -87,7 +101,9 @@ export function LoginForm() {
                 ? "Iniciar sesión"
                 : mode === "signup"
                   ? "Crear cuenta"
-                  : "Enviar enlace mágico"}
+                  : mode === "forgot-password"
+                    ? "Enviar enlace de recuperación"
+                    : "Enviar enlace mágico"}
           </Button>
 
           {mode === "password" && (
@@ -123,7 +139,7 @@ export function LoginForm() {
             </Button>
           )}
 
-          {mode === "magic-link" && (
+          {(mode === "magic-link" || mode === "forgot-password") && (
             <Button
               type="button"
               variant="ghost"

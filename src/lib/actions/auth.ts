@@ -73,3 +73,43 @@ export async function signInWithMagicLink(formData: FormData) {
 
   return { success: "Enlace enviado. Revisa tu correo electrónico." };
 }
+
+export async function sendPasswordRecovery(formData: FormData) {
+  const email = formData.get("email") as string;
+
+  if (!email) {
+    return { error: "Ingresa tu correo electrónico." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=/update-password`,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: "Revisa tu correo para restablecer tu contraseña." };
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = formData.get("password") as string;
+  const confirm = formData.get("confirm") as string;
+
+  if (!password || password.length < 8) {
+    return { error: "La contraseña debe tener al menos 8 caracteres." };
+  }
+  if (password !== confirm) {
+    return { error: "Las contraseñas no coinciden." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { redirect: "/dashboard" };
+}
