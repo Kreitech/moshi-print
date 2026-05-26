@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderStatusBadge } from "./order-status-badge";
+import { CustomerCombobox } from "./customer-combobox";
 import { updateOrder } from "@/lib/actions/orders";
 import { type Order, type Customer } from "@/types/database";
 
@@ -23,13 +24,16 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function OrderDetail({
   order: initial,
-  customer,
+  customer: initialCustomer,
+  customers,
 }: {
   order: Order;
   customer: Customer | null;
+  customers: Customer[];
 }) {
   const [editing, setEditing] = useState(false);
   const [order, setOrder] = useState(initial);
+  const [customer, setCustomer] = useState(initialCustomer);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -40,14 +44,17 @@ export function OrderDetail({
       if (result?.error) {
         setError(result.error);
       } else {
+        const newCustomerId = (formData.get("customer_id") as string)?.trim() || null;
         setOrder({
           ...order,
           title: (formData.get("title") as string).trim(),
           description: (formData.get("description") as string)?.trim() || null,
+          customer_id: newCustomerId,
           quantity: Number(formData.get("quantity")) || 1,
           urgency: (formData.get("urgency") as Order["urgency"]) ?? "normal",
           notes: (formData.get("notes") as string)?.trim() || null,
         });
+        setCustomer(result.customer ?? null);
         setEditing(false);
       }
     });
@@ -72,6 +79,10 @@ export function OrderDetail({
                 defaultValue={order.title}
                 autoFocus
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <CustomerCombobox customers={customers} initialCustomer={customer} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Descripción</Label>
@@ -147,19 +158,16 @@ export function OrderDetail({
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
-        {customer && (
-          <Field
-            label="Cliente"
-            value={
-              <Link
-                href={`/customers/${customer.id}`}
-                className="hover:underline"
-              >
+        <Field
+          label="Cliente"
+          value={
+            customer ? (
+              <Link href={`/customers/${customer.id}`} className="hover:underline">
                 {customer.name}
               </Link>
-            }
-          />
-        )}
+            ) : null
+          }
+        />
         <Field label="Descripción" value={order.description} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Cantidad" value={String(order.quantity)} />

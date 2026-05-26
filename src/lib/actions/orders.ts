@@ -66,13 +66,14 @@ export async function updateOrder(id: string, formData: FormData) {
   const raw = {
     title: (formData.get("title") as string)?.trim(),
     description: (formData.get("description") as string)?.trim(),
+    customer_id: (formData.get("customer_id") as string)?.trim(),
     quantity: formData.get("quantity"),
     urgency: formData.get("urgency"),
     notes: (formData.get("notes") as string)?.trim(),
   };
 
   const parsed = orderSchema
-    .pick({ title: true, description: true, quantity: true, urgency: true, notes: true })
+    .pick({ title: true, description: true, customer_id: true, quantity: true, urgency: true, notes: true })
     .safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
@@ -84,6 +85,7 @@ export async function updateOrder(id: string, formData: FormData) {
     .update({
       title: parsed.data.title,
       description: parsed.data.description || null,
+      customer_id: parsed.data.customer_id || null,
       quantity: parsed.data.quantity,
       urgency: parsed.data.urgency,
       notes: parsed.data.notes || null,
@@ -91,7 +93,17 @@ export async function updateOrder(id: string, formData: FormData) {
     .eq("id", id);
 
   if (error) return { error: "No se pudo guardar los cambios." };
-  return { success: true };
+
+  const newCustomerId = parsed.data.customer_id || null;
+  if (newCustomerId) {
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", newCustomerId)
+      .maybeSingle();
+    return { success: true, customer: customer ?? null };
+  }
+  return { success: true, customer: null };
 }
 
 export async function transitionOrderStatus(

@@ -4,10 +4,16 @@ import { useState, useRef, useEffect, useTransition } from "react";
 import { createCustomerQuick } from "@/lib/actions/customers";
 import { type Customer } from "@/types/database";
 
-export function CustomerCombobox({ customers }: { customers: Customer[] }) {
-  const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState("");
-  const [selectedName, setSelectedName] = useState("");
+export function CustomerCombobox({
+  customers,
+  initialCustomer,
+}: {
+  customers: Customer[];
+  initialCustomer?: { id: string; name: string } | null;
+}) {
+  const [query, setQuery] = useState(initialCustomer?.name ?? "");
+  const [selectedId, setSelectedId] = useState(initialCustomer?.id ?? "");
+  const [selectedName, setSelectedName] = useState(initialCustomer?.name ?? "");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [createError, setCreateError] = useState<string | null>(null);

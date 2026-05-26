@@ -28,10 +28,11 @@ export default async function OrderDetailPage({
 
   if (!order) notFound();
 
-  const [customerResult, filesResult, storageResult, optionsResult, modelsResult, jobsResult, versionsResult] = await Promise.all([
+  const [customerResult, allCustomersResult, filesResult, storageResult, optionsResult, modelsResult, jobsResult, versionsResult] = await Promise.all([
     order.customer_id
       ? supabase.from("customers").select("*").eq("id", order.customer_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from("customers").select("*").eq("tenant_id", tenant!.id).order("name"),
     supabase
       .from("files")
       .select("*")
@@ -70,7 +71,7 @@ export default async function OrderDetailPage({
         </Button>
       </div>
 
-      <OrderDetail order={order} customer={customerResult.data} />
+      <OrderDetail order={order} customer={customerResult.data} customers={allCustomersResult.data ?? []} />
       <OrderActions
         orderId={order.id}
         currentStatus={order.status as OrderStatus}
