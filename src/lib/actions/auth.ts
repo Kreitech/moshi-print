@@ -1,8 +1,18 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 // redirect is kept for signUpWithPassword — signInWithPassword uses client-side redirect
+
+async function getOrigin(): Promise<string> {
+  const hdrs = await headers();
+  const host = hdrs.get("host") ?? "localhost:3000";
+  const proto =
+    hdrs.get("x-forwarded-proto") ??
+    (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export async function signInWithPassword(formData: FormData) {
   const email = formData.get("email") as string;
@@ -30,8 +40,13 @@ export async function signUpWithPassword(formData: FormData) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
   }
 
+  const origin = await getOrigin();
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${origin}/auth/confirm` },
+  });
 
   if (error) {
     if (error.message.includes("already registered") || error.message.includes("User already registered")) {
@@ -81,9 +96,10 @@ export async function sendPasswordRecovery(formData: FormData) {
     return { error: "Ingresa tu correo electrónico." };
   }
 
+  const origin = await getOrigin();
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=/update-password`,
+    redirectTo: `${origin}/auth/confirm?next=/update-password`,
   });
 
   if (error) {
