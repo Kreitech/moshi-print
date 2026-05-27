@@ -10,8 +10,13 @@ export async function GET(request: NextRequest) {
     | "magiclink"
     | "invite"
     | null;
-  // Recovery tokens go to the password update page; everything else goes to dashboard
-  const defaultNext = type === "recovery" ? "/update-password" : "/dashboard";
+  // Recovery → password update; new signups → onboarding; everything else → dashboard
+  const defaultNext =
+    type === "recovery"
+      ? "/update-password"
+      : type === "signup"
+        ? "/onboarding"
+        : "/dashboard";
   const next = searchParams.get("next") ?? defaultNext;
 
   if (token_hash && type) {
