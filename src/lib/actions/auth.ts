@@ -76,10 +76,11 @@ export async function signInWithMagicLink(formData: FormData) {
     return { error: "Ingresa tu correo electrónico." };
   }
 
+  const origin = await getOrigin();
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true },
+    options: { shouldCreateUser: true, emailRedirectTo: `${origin}/auth/confirm` },
   });
 
   if (error) {
