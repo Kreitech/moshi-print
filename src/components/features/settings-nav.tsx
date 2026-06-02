@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const SETTINGS_ITEMS = [
+  { href: "/settings/account", label: "Cuenta" },
   { href: "/settings/printers", label: "Impresoras" },
   { href: "/settings/materials", label: "Materiales" },
   { href: "/settings/profiles", label: "Perfiles de impresión" },
