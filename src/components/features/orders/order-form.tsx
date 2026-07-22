@@ -8,6 +8,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { createOrder } from "@/lib/actions/orders";
 import { type Customer } from "@/types/database";
 import { CustomerCombobox } from "./customer-combobox";
+import { OrderPricingFields } from "./order-pricing-fields";
 
 const URGENCY_OPTIONS = [
   { value: "low", label: "Baja" },
@@ -87,6 +88,8 @@ export function OrderForm({ customers }: { customers: Customer[] }) {
             <Label htmlFor="notes">Notas</Label>
             <Input id="notes" name="notes" />
           </div>
+
+          <OrderPricingFields />
 
           {error && (
             <p className="text-sm font-medium text-destructive">{error}</p>

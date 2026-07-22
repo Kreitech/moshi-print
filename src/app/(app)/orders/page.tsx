@@ -78,6 +78,7 @@ export default async function OrdersPage({
                 <TableHead>Estado</TableHead>
                 <TableHead>Urgencia</TableHead>
                 <TableHead>Cant.</TableHead>
+                <TableHead>Precio</TableHead>
                 <TableHead>Creado</TableHead>
               </TableRow>
             </TableHeader>
@@ -107,6 +108,13 @@ export default async function OrdersPage({
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {order.quantity}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {order.charged_price_amount != null
+                        ? `${order.charged_price_amount.toLocaleString("es-UY", {
+                            minimumFractionDigits: 2,
+                          })} ${order.charged_price_currency ?? "UYU"}`
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {new Date(order.created_at).toLocaleDateString("es-UY")}
