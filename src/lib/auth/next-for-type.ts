@@ -21,3 +21,15 @@ export function nextForConfirmType(type: ConfirmType): string {
       return "/dashboard";
   }
 }
+
+// The `next` param comes from an unauthenticated, attacker-reachable query
+// string (/auth/confirm?next=...). It is later concatenated as `${origin}${next}`
+// — without this check, a value like "@evil.com/" or ".evil.com/x" resolves to a
+// different host once concatenated (open redirect). Only allow a same-site,
+// single-segment-rooted path.
+export function sanitizeNextPath(next: string | null, type: ConfirmType): string {
+  if (next && next.startsWith("/") && !next.startsWith("//") && !next.includes("://")) {
+    return next;
+  }
+  return nextForConfirmType(type);
+}

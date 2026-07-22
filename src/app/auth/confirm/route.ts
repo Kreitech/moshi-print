@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { nextForConfirmType, type ConfirmType } from "@/lib/auth/next-for-type";
+import { nextForConfirmType, sanitizeNextPath, type ConfirmType } from "@/lib/auth/next-for-type";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as ConfirmType;
   const providerError =
     searchParams.get("error_description") ?? searchParams.get("error");
-  const next = searchParams.get("next") ?? nextForConfirmType(type);
+  // next is attacker-reachable (unauthenticated query param) — must stay a
+  // same-site relative path, since it's concatenated into a redirect URL below.
+  const next = sanitizeNextPath(searchParams.get("next"), type);
 
   if (providerError) {
     // Supabase already rejected the link (e.g. expired) before we could verify it.

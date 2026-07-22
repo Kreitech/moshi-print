@@ -3,7 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { nextForConfirmType, type ConfirmType } from "@/lib/auth/next-for-type";
+import { sanitizeNextPath, type ConfirmType } from "@/lib/auth/next-for-type";
 
 // Establishes a Supabase session from an implicit-flow URL hash fragment
 // (#access_token=...&refresh_token=...&type=...) that /auth/confirm could not
@@ -18,7 +18,9 @@ function AuthCallbackInner() {
     const access_token = hashParams.get("access_token");
     const refresh_token = hashParams.get("refresh_token");
     const type = (hashParams.get("type") as ConfirmType) ?? null;
-    const next = searchParams.get("next") ?? nextForConfirmType(type);
+    // next is attacker-reachable (unauthenticated query param) — must stay a
+    // same-site relative path, since it's passed straight to router.replace().
+    const next = sanitizeNextPath(searchParams.get("next"), type);
 
     if (!access_token || !refresh_token) {
       console.warn("[auth/callback] no session fragment found in URL");

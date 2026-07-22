@@ -56,6 +56,38 @@ async function getCurrentRole(
   return data?.role ?? null;
 }
 
+// model_id/product_id arrive as plain form/param values, not scoped by RLS on
+// their own — without this check a tenant could link their product/variant to
+// another tenant's model/product row (the insert's own tenant_id is correct,
+// but the foreign key it references wouldn't be).
+async function modelBelongsToTenant(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  modelId: string,
+  tenantId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("models")
+    .select("id")
+    .eq("id", modelId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
+async function productBelongsToTenant(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId: string,
+  tenantId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("sellable_products")
+    .select("id")
+    .eq("id", productId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 function parseProductForm(formData: FormData) {
   return productSchema.safeParse({
     name: (formData.get("name") as string)?.trim(),
@@ -103,6 +135,11 @@ export async function createProduct(formData: FormData) {
     role === "owner" || role === "admin"
   );
   if (!gate.allowed) return { error: gate.reason };
+
+  if (d.model_id) {
+    const belongsToTenant = await modelBelongsToTenant(supabase, d.model_id, tenant.id);
+    if (!belongsToTenant) return { error: "Modelo no encontrado." };
+  }
 
   const { data: product, error } = await supabase
     .from("sellable_products")
@@ -161,6 +198,11 @@ export async function updateProduct(id: string, formData: FormData) {
   );
   if (!gate.allowed) return { error: gate.reason };
 
+  if (d.model_id) {
+    const belongsToTenant = await modelBelongsToTenant(supabase, d.model_id, tenant.id);
+    if (!belongsToTenant) return { error: "Modelo no encontrado." };
+  }
+
   const { error } = await supabase
     .from("sellable_products")
     .update({
@@ -217,6 +259,9 @@ export async function addProductVariant(productId: string, formData: FormData) {
   const supabase = await createClient();
   const tenant = await getActiveTenant(supabase);
   if (!tenant) return { error: "Sin espacio de trabajo." };
+
+  const belongsToTenant = await productBelongsToTenant(supabase, productId, tenant.id);
+  if (!belongsToTenant) return { error: "Producto no encontrado." };
 
   const { error } = await supabase.from("product_variants").insert({
     tenant_id: tenant.id,
