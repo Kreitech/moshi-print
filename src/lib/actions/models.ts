@@ -23,6 +23,17 @@ const MODEL_STATUSES: [ModelStatus, ...ModelStatus[]] = [
   "discarded",
 ];
 
+export const SOURCE_PLATFORMS = [
+  "printables",
+  "thingiverse",
+  "makerworld",
+  "cults3d",
+  "etsy",
+  "own_design",
+  "customer_provided",
+  "other",
+] as const;
+
 const modelSchema = z.object({
   name: z.string().min(1, "El nombre es requerido."),
   description: z.string().optional(),
@@ -30,10 +41,12 @@ const modelSchema = z.object({
   tags: z.string().optional(),
   notes: z.string().optional(),
   source_url: z.string().url("URL invalida.").optional().or(z.literal("")),
-  source_platform: z.string().optional(),
+  source_platform: z.enum(SOURCE_PLATFORMS).optional().or(z.literal("")),
   license: z.string().optional(),
   commercial_use_allowed: z.enum(["true", "false"]).optional(),
   attribution_required: z.enum(["true", "false"]).optional(),
+  attribution_text: z.string().optional(),
+  license_notes: z.string().optional(),
 });
 
 export async function createModel(formData: FormData) {
@@ -77,6 +90,8 @@ export async function createModel(formData: FormData) {
           : d.attribution_required === "false"
           ? false
           : null,
+      attribution_text: d.attribution_text || null,
+      license_notes: d.license_notes || null,
       created_by: user.user.id,
     })
     .select("id")
@@ -120,6 +135,8 @@ export async function updateModel(id: string, formData: FormData) {
           : d.attribution_required === "false"
           ? false
           : null,
+      attribution_text: d.attribution_text || null,
+      license_notes: d.license_notes || null,
     })
     .eq("id", id);
 

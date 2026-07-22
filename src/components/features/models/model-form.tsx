@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createModel, updateModel } from "@/lib/actions/models";
+import { createModel, updateModel, SOURCE_PLATFORMS } from "@/lib/actions/models";
 import { type Model, type ModelStatus } from "@/types/database";
 
 const STATUS_OPTIONS: { value: ModelStatus; label: string }[] = [
@@ -17,6 +17,17 @@ const STATUS_OPTIONS: { value: ModelStatus; label: string }[] = [
   { value: "production_ready", label: "Listo produccion" },
   { value: "discarded", label: "Descartado" },
 ];
+
+const SOURCE_PLATFORM_LABELS: Record<(typeof SOURCE_PLATFORMS)[number], string> = {
+  printables: "Printables",
+  thingiverse: "Thingiverse",
+  makerworld: "MakerWorld",
+  cults3d: "Cults3D",
+  etsy: "Etsy",
+  own_design: "Diseño propio",
+  customer_provided: "Provisto por el cliente",
+  other: "Otro",
+};
 
 export function ModelForm({ initial }: { initial?: Model }) {
   const router = useRouter();
@@ -67,15 +78,6 @@ export function ModelForm({ initial }: { initial?: Model }) {
             ))}
           </select>
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Plataforma fuente</Label>
-          <Input
-            name="source_platform"
-            defaultValue={initial?.source_platform ?? ""}
-            placeholder="Printables, Thingiverse..."
-            className="h-8 text-sm"
-          />
-        </div>
       </div>
 
       <div className="space-y-1">
@@ -87,64 +89,104 @@ export function ModelForm({ initial }: { initial?: Model }) {
         />
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">URL fuente</Label>
-        <Input
-          name="source_url"
-          type="url"
-          defaultValue={initial?.source_url ?? ""}
-          placeholder="https://..."
-          className="h-8 text-sm"
-        />
-      </div>
+      <fieldset className="space-y-3 rounded-md border px-3 py-3">
+        <legend className="px-1 text-xs font-medium">Fuente y licencia</legend>
 
-      <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Plataforma fuente</Label>
+            <select
+              name="source_platform"
+              defaultValue={initial?.source_platform ?? ""}
+              className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
+            >
+              <option value="">—</option>
+              {SOURCE_PLATFORMS.map((p) => (
+                <option key={p} value={p}>
+                  {SOURCE_PLATFORM_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">URL fuente</Label>
+            <Input
+              name="source_url"
+              type="url"
+              defaultValue={initial?.source_url ?? ""}
+              placeholder="https://..."
+              className="h-8 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Licencia</Label>
+            <Input
+              name="license"
+              defaultValue={initial?.license ?? ""}
+              placeholder="CC BY-SA 4.0"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Uso comercial</Label>
+            <select
+              name="commercial_use_allowed"
+              defaultValue={
+                initial?.commercial_use_allowed === true
+                  ? "true"
+                  : initial?.commercial_use_allowed === false
+                  ? "false"
+                  : ""
+              }
+              className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
+            >
+              <option value="">—</option>
+              <option value="true">Si</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Atribucion</Label>
+            <select
+              name="attribution_required"
+              defaultValue={
+                initial?.attribution_required === true
+                  ? "true"
+                  : initial?.attribution_required === false
+                  ? "false"
+                  : ""
+              }
+              className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
+            >
+              <option value="">—</option>
+              <option value="true">Requerida</option>
+              <option value="false">No requerida</option>
+            </select>
+          </div>
+        </div>
+
         <div className="space-y-1">
-          <Label className="text-xs">Licencia</Label>
+          <Label className="text-xs">Texto de atribucion</Label>
           <Input
-            name="license"
-            defaultValue={initial?.license ?? ""}
-            placeholder="CC BY-SA 4.0"
+            name="attribution_text"
+            defaultValue={initial?.attribution_text ?? ""}
+            placeholder='Ej. "Diseño por Fulano, cults3d.com/..."'
             className="h-8 text-sm"
           />
         </div>
+
         <div className="space-y-1">
-          <Label className="text-xs">Uso comercial</Label>
-          <select
-            name="commercial_use_allowed"
-            defaultValue={
-              initial?.commercial_use_allowed === true
-                ? "true"
-                : initial?.commercial_use_allowed === false
-                ? "false"
-                : ""
-            }
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
-          >
-            <option value="">—</option>
-            <option value="true">Si</option>
-            <option value="false">No</option>
-          </select>
+          <Label className="text-xs">Notas de licencia</Label>
+          <Input
+            name="license_notes"
+            defaultValue={initial?.license_notes ?? ""}
+            className="h-8 text-sm"
+          />
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Atribucion</Label>
-          <select
-            name="attribution_required"
-            defaultValue={
-              initial?.attribution_required === true
-                ? "true"
-                : initial?.attribution_required === false
-                ? "false"
-                : ""
-            }
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
-          >
-            <option value="">—</option>
-            <option value="true">Requerida</option>
-            <option value="false">No requerida</option>
-          </select>
-        </div>
-      </div>
+      </fieldset>
 
       <div className="space-y-1">
         <Label className="text-xs">Tags (separados por coma)</Label>
