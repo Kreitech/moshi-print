@@ -29,7 +29,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthRoute =
-    pathname.startsWith("/login") || pathname.startsWith("/onboarding") || pathname.startsWith("/auth/");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/update-password") ||
+    pathname.startsWith("/auth/");
 
   let user = null;
   try {

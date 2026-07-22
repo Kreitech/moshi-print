@@ -122,10 +122,22 @@ export async function updatePassword(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error:
+        "Tu sesión de verificación expiró. Solicitá un nuevo enlace e intentá de nuevo.",
+    };
+  }
+
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
-    return { error: error.message };
+    console.warn("[auth] updatePassword failed", { reason: error.message });
+    return { error: "No se pudo actualizar la contraseña. Intentá de nuevo." };
   }
 
   return { redirect: "/dashboard" };
