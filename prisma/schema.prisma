@@ -166,11 +166,21 @@ model Model {
   notes                  String?
   source_url             String?
   source_platform        String?
+  creator                String?
   license                String?
+  license_evidence       String?
   commercial_use_allowed Boolean?
   attribution_required   Boolean?
   attribution_text       String?
   license_notes          String?
+
+  // Explicit human commercial-use verification — always starts "pending".
+  // Separate from commercial_use_allowed (read by the existing sellable-
+  // product gate in src/lib/products/license-gate.ts, unchanged here).
+  commercial_use_verification_status String    @default("pending")
+  commercial_use_verified_by         String?   @db.Uuid
+  commercial_use_verified_at         DateTime? @db.Timestamptz(6)
+
   source_order_id        String?  @db.Uuid
   created_by             String   @db.Uuid
   created_at             DateTime @default(now()) @db.Timestamptz(6)
