@@ -70,8 +70,23 @@ _Last updated: 2026-05-08 | Run /sync to regenerate from github-issues_
 | MP-33 | Dashboard KPI cards | S |
 | MP-34 | Dashboard production queue widget | S |
 
+### Sprint 5 — Commerce & Product Validation
+**Goal:** Manual research-candidate discovery with license evidence, standalone print validation, a hard gate before a model can become a Sellable Product, and MercadoLibre draft generation — no scraping, no marketplace API, no auto-publish.
+**Tickets:** MP-35 to MP-42
+
+| ID | Title | Size |
+|---|---|---|
+| MP-35 | DB schema — research candidate fields on models (creator, license evidence, verification status) | M |
+| MP-36 | DB schema — model_validation_attempts (standalone print validation, decoupled from orders) | M |
+| MP-37 | Commercial-use verification action (admin/owner) | S |
+| MP-38 | Log validation test print + record validation decision | M |
+| MP-39 | Enforce candidate → Sellable Product gate (verified license + passing validation) | S |
+| MP-40 | Sellable Product fields — title, variants, suggested price (UYU), photos, lead time, lifecycle | S |
+| MP-41 | MercadoLibre draft — add SKU + required-attributes checklist | S |
+| MP-42 | Seed Pasta Playset as research candidate (example data, never sellable) | S |
+
 ## Totals
-- Sprints: 4
-- Tickets: 34
-- S tickets: 16
-- M tickets: 18
+- Sprints: 5
+- Tickets: 42
+- S tickets: 21
+- M tickets: 21

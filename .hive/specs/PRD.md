@@ -216,6 +216,67 @@ Get Moshicrea off WhatsApp and into a purpose-built tool — so every order is t
 
 ---
 
+#### F9 — Commerce & Product Validation
+
+**Discovery → Research Candidate**
+
+- [ ] **Record research candidate:** Given a team member manually finds a model on MakerWorld, Yeggi, Printables, Thingiverse, or another source, When they log it in MoshiPrint, Then a model record is created with source and license evidence
+  - Fields: `source_url`, `source_platform` (makerworld | yeggi | printables | thingiverse | other), `creator` (if known), `license`, `license_evidence` (link or notes pointing at the license text/page), `commercial_use_verification_status` (pending | verified | rejected), `attribution_required`
+  - No scraping or automated download from the source site — a team member enters the data manually after reviewing the source page themselves
+  - New candidates always start at `commercial_use_verification_status: pending` — free-to-download is never treated as license evidence
+
+- [ ] **Human commercial-use verification:** Given a research candidate with `commercial_use_verification_status: pending`, When an admin or owner reviews the license evidence and makes a call, Then the status updates to `verified` or `rejected`
+  - Verification is an explicit human decision — never inferred automatically from license text, price (free), or absence of a stated restriction
+  - `pending` and `rejected` candidates cannot be converted into a Sellable Product (see gate below)
+
+**Print Validation (standalone from orders)**
+
+- [ ] **Log a validation test print:** Given a research candidate, When the team prints a physical test of it, Then a validation record captures the outcome independent of any customer order
+  - Fields: printer, material, result (success | failure | partial), print settings used, photos (reusing the existing file-reference pattern), estimated material cost, estimated print time, notes
+  - Validation test prints do not require a linked customer order — they can be logged directly against the research candidate
+  - Recording an outcome is evidence only; it does not by itself change license status or sellability
+
+- [ ] **Validation decision:** Given a validation test print's recorded outcome, When an admin or owner reviews it, Then they record an explicit validation decision (pass | fail | needs_adjustment) on the candidate
+  - The decision is distinct from the raw print outcome — a technically successful print can still be marked `needs_adjustment` for fit, cosmetic, or cost reasons
+  - Only a `pass` decision counts toward Sellable Product eligibility
+
+**Gate: Candidate → Sellable Product**
+
+- [ ] **Convert to Sellable Product:** Given a research candidate, When a user attempts to create a Sellable Product from it, Then the action is blocked unless BOTH `commercial_use_verification_status = verified` AND at least one validation test print has a `pass` decision
+  - Both conditions are required together — a passing test print with an unverified license is not enough, and a verified license with no passing test print is not enough
+  - A blocked attempt states which condition(s) are missing
+  - Enforced server-side — not just hidden or disabled in the UI
+
+**Sellable Product**
+
+- [ ] **Sellable Product record:** Given a candidate that has passed the gate above, When a user creates a Sellable Product, Then a record is created with `title`, `variants` (color/size/material + price delta), `suggested_price` (UYU), `photos`, `fulfillment_lead_time_days`, and `lifecycle_status` (draft | ready | published | paused | archived)
+  - `suggested_price` is a catalog list price, not a transaction record — it pre-fills listing drafts and quotes
+  - A Sellable Product always keeps a link back to its source research candidate, for license traceability
+
+**MercadoLibre listing draft (no publishing)**
+
+- [ ] **Generate MercadoLibre draft:** Given a Sellable Product that has passed the license/validation gate, When a user requests a MercadoLibre draft, Then MoshiPrint generates a DRAFT listing with title, description, suggested price, an image checklist, a required-attributes checklist, and a SKU
+  - The draft lives and is edited entirely inside MoshiPrint — there is no MercadoLibre API integration and no automatic publication in this scope
+  - Publishing is always a manual action performed directly on MercadoLibre by the team, copying the draft's content
+  - Draft generation is blocked for any product that hasn't passed the license/validation gate
+
+**Order revenue vs. Sellable Product suggested price**
+
+- Sellable Product `suggested_price` (UYU) is a catalog price, set once per product.
+- Order `charged_price_amount` / `charged_price_currency` (decimal, already in place) remains the actual amount billed to a specific customer for a specific order — independent of, and may differ from, the product's suggested price (discounts, negotiation, bundling). Unchanged by this roadmap; no cents-based field is introduced — the existing decimal amount is the source of truth for revenue reporting.
+
+**Worked example — research candidate only (never sellable until verified)**
+
+- Model: "Pasta Playset — Pasta Box, Noodles, Bowl, Funny Fork"
+  - `source_url`: https://makerworld.com/en/models/1516685-pasta-playset-pasta-box-noodles-bowl-funny-fork
+  - `source_platform`: makerworld
+  - Category: toys and children's games
+  - Suggested price (for future reference only, not yet a Sellable Product): UYU 990
+  - `commercial_use_verification_status`: pending
+  - Must never be marked sellable or have a MercadoLibre draft generated until commercial rights are verified per the gate above
+
+---
+
 ### Should Have (post-MVP)
 - **Cost estimation:** Given an order, When a cost is entered, Then materials + time are tracked for quoting — *deferred: requires pricing data not yet available*
 - **Consumption reports:** Given an admin, When they view reports, Then time and material usage by printer/period are shown — *deferred: needs print attempt data accumulation first*
