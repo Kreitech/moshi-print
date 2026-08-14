@@ -12,11 +12,13 @@ epic: model-library    #ec4899
 epic: production-setup #8b5cf6
 epic: print-jobs       #ef4444
 epic: dashboard        #14b8a6
+epic: commerce-validation #a855f7
 
 sprint: 1              #e2e8f0
 sprint: 2              #e2e8f0
 sprint: 3              #e2e8f0
 sprint: 4              #e2e8f0
+sprint: 5              #e2e8f0
 
 size: S                #d1fae5
 size: M                #fef3c7
@@ -985,6 +987,206 @@ Operator sees their next 10 actionable orders below the KPI cards.
 
 ---
 
+## Sprint 5 — Commerce & Product Validation
+
+---
+
+### MP-35 · DB schema — research candidate fields on models (creator, license evidence, verification status)
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: M`
+
+**Goal**
+Extend `models` with the fields needed to record a manually-discovered research candidate: who made it, where the license evidence lives, and an explicit human verification status — replacing "unknown license" with a tracked, auditable state instead of an implicit boolean.
+
+**Acceptance Criteria**
+- `models` gains: `creator text`, `license_evidence text` (link or notes pointing at the license text/page), `commercial_use_verification_status text check(pending|verified|rejected) default 'pending'`, `commercial_use_verified_by uuid`, `commercial_use_verified_at timestamptz`
+- Existing `commercial_use_allowed` boolean is kept for backward compatibility with current product-creation code; new code paths read `commercial_use_verification_status` as the source of truth
+- All new fields are nullable/defaulted — no backfill required beyond `commercial_use_verification_status` defaulting existing rows to `pending`
+- Migration runs cleanly against existing `models` data
+
+**Technical Notes**
+- No scraping or automated fetch of any kind — `source_url`, `creator`, and `license_evidence` are always entered manually by a team member
+- `commercial_use_verified_by` / `commercial_use_verified_at` are set only by MP-37, never by this ticket
+
+**Dependencies**
+- MP-22 (existing `models` table)
+
+**Test Cases**
+- New model defaults to `commercial_use_verification_status: pending`
+- Existing models backfill to `pending` without data loss on other columns
+
+---
+
+### MP-36 · DB schema — model_validation_attempts (standalone print validation, decoupled from orders)
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: M`
+
+**Goal**
+A validation-test-print table that exists independently of `orders` and `print_jobs` — today `print_jobs.order_id` is required, so a research candidate with no customer order has nowhere to log a test print.
+
+**Acceptance Criteria**
+- `model_validation_attempts`: `id, tenant_id, model_id fk, printer_id fk, material_id fk, result text check(success|failure|partial) not null, settings_notes text, estimated_material_cost_amount decimal(12,2), estimated_material_cost_currency text default 'UYU', estimated_time_minutes int, notes text, decision text check(pass|fail|needs_adjustment), decided_by uuid, decided_at timestamptz, created_by uuid, created_at timestamptz`
+- No `order_id` or `print_job_id` column — this table is intentionally standalone
+- Photos attach via the existing polymorphic `files` table using a new `entity_type` value `model_validation_attempt` (requires extending the `files_entity_type_check` constraint)
+- RLS on `model_validation_attempts` matches the tenant-isolation pattern used by `print_attempts`
+- `decision` is nullable at insert time — the outcome (`result`) and the decision (`decision`) are recorded in separate steps (see MP-38)
+
+**Dependencies**
+- MP-35, MP-18 (printers/materials), MP-16 (files)
+
+**Test Cases**
+- Insert a validation attempt with no linked order or print job — succeeds
+- Cross-tenant isolation enforced
+- Photo file reference with `entity_type = model_validation_attempt` passes the (updated) check constraint
+
+---
+
+### MP-37 · Commercial-use verification action (admin/owner)
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: S`
+
+**Goal**
+An explicit human action that moves a candidate's `commercial_use_verification_status` from `pending` to `verified` or `rejected` — never inferred automatically.
+
+**Acceptance Criteria**
+- Model detail page shows the current verification status and, for `owner`/`admin` roles only, "Marcar como verificado" / "Rechazar" actions
+- Action requires the reviewer to have viewed `license_evidence` (field must be non-empty to allow "Marcar como verificado" — empty evidence blocks verification with a clear message)
+- On confirm: sets `commercial_use_verification_status`, `commercial_use_verified_by = auth.uid()`, `commercial_use_verified_at = now()`
+- `sales`/`operator` roles see the status as read-only, no action buttons
+- Status changes are logged in `notes` history or an audit trail (append-only note is sufficient for MVP)
+
+**Dependencies**
+- MP-35
+
+**Test Cases**
+- Admin verifies a candidate with license evidence filled → status becomes `verified`
+- Admin attempts to verify with empty `license_evidence` → blocked with explicit message
+- `sales` role → no verify/reject buttons rendered; server action rejects if attempted directly
+
+---
+
+### MP-38 · Log validation test print + record validation decision
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: M`
+
+**Goal**
+Operators log a physical test print against a research candidate (outcome, settings, cost, photos); an admin/owner separately records the go/no-go decision.
+
+**Acceptance Criteria**
+- Model detail page: "Registrar impresión de prueba" form — printer, material, result (success|failure|partial), settings_notes, estimated_material_cost_amount + currency, estimated_time_minutes, notes
+- Submit creates a `model_validation_attempts` row with `decision` left null
+- Photos attached via `<FileReferenceForm entityType="model_validation_attempt" entityId={attemptId} />` (reusing the existing component)
+- Validation attempts list shows all attempts for the model, most recent first, with photos and full detail
+- Separate "Registrar decisión" action (admin/owner only) on any attempt without a decision: pass | fail | needs_adjustment, sets `decided_by`/`decided_at`
+- All labels in Spanish
+
+**Dependencies**
+- MP-36, MP-17 (file components)
+
+**Test Cases**
+- Log an attempt with no linked order → appears on the model's validation history
+- Record a `pass` decision → attempt shows decision badge, decided_by/decided_at set
+- A model can accumulate multiple attempts; only decision-bearing `pass` attempts count toward MP-39's gate
+
+---
+
+### MP-39 · Enforce candidate → Sellable Product gate (verified license + passing validation)
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: S`
+
+**Goal**
+Block Sellable Product creation from a model unless the license is verified AND at least one validation attempt has a `pass` decision — replacing the current UI-only status check (`tested_ok`/`production_ready`) with a server-enforced rule tied to the new fields.
+
+**Acceptance Criteria**
+- `createProduct` server action rejects (with a specific Spanish error naming the missing condition) unless the source model has `commercial_use_verification_status = 'verified'` AND at least one `model_validation_attempts` row with `decision = 'pass'`
+- Model detail page's "Crear producto vendible" link is hidden/disabled with the same explanation when either condition is unmet
+- Existing license gate in `checkPublishableStatus` (product status → ready/published) is unchanged and still applies on top of this candidate-level gate
+- Gate check happens server-side even if the UI is bypassed (e.g. direct POST)
+
+**Dependencies**
+- MP-35, MP-37, MP-38, existing `src/lib/actions/products.ts` / `src/lib/products/license-gate.ts`
+
+**Test Cases**
+- Model with `verified` license but no `pass` decision → product creation blocked, message names the missing validation
+- Model with a `pass` decision but `pending`/`rejected` license → product creation blocked, message names the missing verification
+- Model with both conditions met → product creation succeeds
+
+---
+
+### MP-40 · Sellable Product fields — title, variants, suggested price (UYU), photos, lead time, lifecycle
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: S`
+
+**Goal**
+Confirm/complete the Sellable Product shape against the roadmap: most fields already exist (`name`, `product_variants`, `base_price_amount`/`currency`, `lead_time_days`, `status`) — this ticket adds the missing photo attachment path and documents `suggested_price` as distinct from an order's `charged_price_amount`.
+
+**Acceptance Criteria**
+- Photos attach via the existing polymorphic `files` table using a new `entity_type` value `sellable_product` (extends `files_entity_type_check`)
+- `<FileList entityType="sellable_product" entityId={productId} />` and `<FileReferenceForm>` mounted on the product detail page
+- Product detail page clearly labels `base_price_amount` as "Precio sugerido" to avoid confusion with an order's charged price
+- No change to `orders.charged_price_amount`/`charged_price_currency` — they remain the actual amount billed per order, independent of the product's suggested price
+
+**Dependencies**
+- MP-39 (gate must pass before a product exists), MP-16/MP-17 (files)
+
+**Test Cases**
+- Attach a photo to a Sellable Product → appears in its file list
+- Product detail shows "Precio sugerido" label, not "Precio"
+
+---
+
+### MP-41 · MercadoLibre draft — add SKU + required-attributes checklist
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: S`
+
+**Goal**
+The existing `channel_listings`/`buildListingDraft` MercadoLibre draft already generates title, description, suggested price, suggested tags, and a photo checklist. This ticket adds the two remaining pieces the roadmap requires: a SKU and a required-attributes checklist distinct from the photo checklist. Still no API integration, no auto-publish.
+
+**Acceptance Criteria**
+- `channel_listings` gains `sku text` and `required_attributes_checklist jsonb`
+- `buildListingDraft` for the `mercadolibre` provider populates `sku` (from the product's default/first variant SKU, or a generated fallback if no variant exists) and a fixed MVP `required_attributes_checklist` (e.g. category, condition, brand/model where applicable)
+- Listing draft UI shows the required-attributes checklist alongside the existing photo checklist
+- Draft generation is blocked (reusing MP-39's gate) if the underlying product hasn't passed the license/validation gate
+- No call to any MercadoLibre API; no "publish" action exists anywhere in the app
+
+**Dependencies**
+- MP-39, existing `src/lib/products/channel-draft.ts`, `src/lib/actions/products.ts`
+
+**Test Cases**
+- Generate a MercadoLibre draft for a gated-and-passed product → draft includes non-empty SKU and required-attributes checklist
+- Attempt to generate a draft for a product that hasn't passed the gate → blocked with explanation
+- Generate a draft for a non-MercadoLibre provider → unaffected, no SKU/attributes checklist added
+
+---
+
+### MP-42 · Seed Pasta Playset as research candidate (example data, never sellable)
+
+**Labels:** `epic: commerce-validation` `sprint: 5` `size: S`
+
+**Goal**
+Add one real example so the team can see the discovery-to-gate workflow end to end without any license risk — this candidate is explicitly never allowed to become a Sellable Product until someone actually verifies the license.
+
+**Acceptance Criteria**
+- Seed creates one `models` row for the Moshicrea tenant:
+  - `name`: "Pasta Playset - Pasta Box, Noodles, Bowl, Funny Fork"
+  - `source_url`: `https://makerworld.com/en/models/1516685-pasta-playset-pasta-box-noodles-bowl-funny-fork`
+  - `source_platform`: `makerworld`
+  - `tags`: `["toys and childrens games"]`
+  - `commercial_use_verification_status`: `pending`
+  - `notes`: includes "Suggested price for future reference: UYU 990 — not a Sellable Product until license verified"
+- No `sellable_products` row is created for this model by the seed
+- Seed is idempotent (re-running does not create duplicates)
+
+**Dependencies**
+- MP-35
+
+**Test Cases**
+- Seed run → exactly one Pasta Playset model exists, `commercial_use_verification_status = pending`
+- No Sellable Product exists linked to this model
+- Re-running the seed does not duplicate the row
+
+---
+
 ## Summary
 
 | Epic | Tickets | Sprint |
@@ -997,7 +1199,8 @@ Operator sees their next 10 actionable orders below the KPI cards.
 | Model Library | MP-22 – MP-27 | 3 |
 | Print Jobs & Attempts | MP-28 – MP-32 | 4 |
 | Dashboard | MP-33 – MP-34 | 4 |
-| **Total** | **34 tickets** | **4 sprints** |
+| Commerce & Product Validation | MP-35 – MP-42 | 5 |
+| **Total** | **42 tickets** | **5 sprints** |
 
 ---
 

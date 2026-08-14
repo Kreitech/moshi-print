@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderStatusBadge } from "./order-status-badge";
 import { CustomerCombobox } from "./customer-combobox";
+import { OrderPricingFields, PAYMENT_STATUS_LABELS } from "./order-pricing-fields";
 import { updateOrder } from "@/lib/actions/orders";
 import { type Order, type Customer } from "@/types/database";
 
@@ -45,6 +46,7 @@ export function OrderDetail({
         setError(result.error);
       } else {
         const newCustomerId = (formData.get("customer_id") as string)?.trim() || null;
+        const chargedPriceRaw = (formData.get("charged_price_amount") as string)?.trim();
         setOrder({
           ...order,
           title: (formData.get("title") as string).trim(),
@@ -53,6 +55,14 @@ export function OrderDetail({
           quantity: Number(formData.get("quantity")) || 1,
           urgency: (formData.get("urgency") as Order["urgency"]) ?? "normal",
           notes: (formData.get("notes") as string)?.trim() || null,
+          charged_price_amount: chargedPriceRaw ? Number(chargedPriceRaw) : null,
+          charged_price_currency:
+            (formData.get("charged_price_currency") as string) || "UYU",
+          charged_price_notes:
+            (formData.get("charged_price_notes") as string)?.trim() || null,
+          payment_status:
+            (formData.get("payment_status") as Order["payment_status"]) ??
+            "not_tracked",
         });
         setCustomer(result.customer ?? null);
         setEditing(false);
@@ -125,6 +135,7 @@ export function OrderDetail({
                 defaultValue={order.notes ?? ""}
               />
             </div>
+            <OrderPricingFields order={order} />
             {error && (
               <p className="text-sm font-medium text-destructive">{error}</p>
             )}
@@ -177,6 +188,25 @@ export function OrderDetail({
           />
         </div>
         <Field label="Notas" value={order.notes} />
+        {order.charged_price_amount != null && (
+          <div className="grid grid-cols-2 gap-4 rounded-md border px-3 py-2">
+            <Field
+              label="Precio cobrado"
+              value={`${order.charged_price_amount.toLocaleString("es-UY", {
+                minimumFractionDigits: 2,
+              })} ${order.charged_price_currency ?? "UYU"}`}
+            />
+            <Field
+              label="Estado de pago"
+              value={PAYMENT_STATUS_LABELS[order.payment_status]}
+            />
+            {order.charged_price_notes && (
+              <div className="col-span-2">
+                <Field label="Notas de precio" value={order.charged_price_notes} />
+              </div>
+            )}
+          </div>
+        )}
         <Field
           label="Creado"
           value={new Date(order.created_at).toLocaleDateString("es-UY")}

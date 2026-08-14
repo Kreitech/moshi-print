@@ -23,6 +23,17 @@ const MODEL_STATUSES: [ModelStatus, ...ModelStatus[]] = [
   "discarded",
 ];
 
+export const SOURCE_PLATFORMS = [
+  "printables",
+  "thingiverse",
+  "makerworld",
+  "cults3d",
+  "etsy",
+  "own_design",
+  "customer_provided",
+  "other",
+] as const;
+
 const modelSchema = z.object({
   name: z.string().min(1, "El nombre es requerido."),
   description: z.string().optional(),
@@ -30,11 +41,20 @@ const modelSchema = z.object({
   tags: z.string().optional(),
   notes: z.string().optional(),
   source_url: z.string().url("URL invalida.").optional().or(z.literal("")),
-  source_platform: z.string().optional(),
+  source_platform: z.enum(SOURCE_PLATFORMS).optional().or(z.literal("")),
+  creator: z.string().optional(),
   license: z.string().optional(),
+  license_evidence: z.string().optional(),
   commercial_use_allowed: z.enum(["true", "false"]).optional(),
   attribution_required: z.enum(["true", "false"]).optional(),
+  attribution_text: z.string().optional(),
+  license_notes: z.string().optional(),
 });
+
+// commercial_use_verification_status is intentionally NOT part of this
+// schema — it always starts "pending" (DB default) and can only move to
+// "verified"/"rejected" through an explicit verification action, not via
+// the general create/edit model form.
 
 export async function createModel(formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
@@ -64,7 +84,9 @@ export async function createModel(formData: FormData) {
       notes: d.notes || null,
       source_url: d.source_url || null,
       source_platform: d.source_platform || null,
+      creator: d.creator || null,
       license: d.license || null,
+      license_evidence: d.license_evidence || null,
       commercial_use_allowed:
         d.commercial_use_allowed === "true"
           ? true
@@ -77,6 +99,8 @@ export async function createModel(formData: FormData) {
           : d.attribution_required === "false"
           ? false
           : null,
+      attribution_text: d.attribution_text || null,
+      license_notes: d.license_notes || null,
       created_by: user.user.id,
     })
     .select("id")
@@ -107,7 +131,9 @@ export async function updateModel(id: string, formData: FormData) {
       notes: d.notes || null,
       source_url: d.source_url || null,
       source_platform: d.source_platform || null,
+      creator: d.creator || null,
       license: d.license || null,
+      license_evidence: d.license_evidence || null,
       commercial_use_allowed:
         d.commercial_use_allowed === "true"
           ? true
@@ -120,6 +146,8 @@ export async function updateModel(id: string, formData: FormData) {
           : d.attribution_required === "false"
           ? false
           : null,
+      attribution_text: d.attribution_text || null,
+      license_notes: d.license_notes || null,
     })
     .eq("id", id);
 

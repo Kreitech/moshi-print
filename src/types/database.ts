@@ -102,6 +102,12 @@ export type Database = {
           status: string;
           tags: string[];
           notes: string | null;
+          charged_price_amount: number | null;
+          charged_price_currency: string | null;
+          charged_price_notes: string | null;
+          quoted_price_amount: number | null;
+          quoted_price_currency: string | null;
+          payment_status: "not_tracked" | "pending" | "partial" | "paid";
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -117,6 +123,12 @@ export type Database = {
           status?: string;
           tags?: string[];
           notes?: string | null;
+          charged_price_amount?: number | null;
+          charged_price_currency?: string | null;
+          charged_price_notes?: string | null;
+          quoted_price_amount?: number | null;
+          quoted_price_currency?: string | null;
+          payment_status?: "not_tracked" | "pending" | "partial" | "paid";
           created_by: string;
           created_at?: string;
           updated_at?: string;
@@ -132,6 +144,12 @@ export type Database = {
           status?: string;
           tags?: string[];
           notes?: string | null;
+          charged_price_amount?: number | null;
+          charged_price_currency?: string | null;
+          charged_price_notes?: string | null;
+          quoted_price_amount?: number | null;
+          quoted_price_currency?: string | null;
+          payment_status?: "not_tracked" | "pending" | "partial" | "paid";
           created_by?: string;
           created_at?: string;
           updated_at?: string;
@@ -391,9 +409,16 @@ export type Database = {
           notes: string | null;
           source_url: string | null;
           source_platform: string | null;
+          creator: string | null;
           license: string | null;
+          license_evidence: string | null;
           commercial_use_allowed: boolean | null;
           attribution_required: boolean | null;
+          attribution_text: string | null;
+          license_notes: string | null;
+          commercial_use_verification_status: "pending" | "verified" | "rejected";
+          commercial_use_verified_by: string | null;
+          commercial_use_verified_at: string | null;
           source_order_id: string | null;
           created_by: string;
           created_at: string;
@@ -409,9 +434,16 @@ export type Database = {
           notes?: string | null;
           source_url?: string | null;
           source_platform?: string | null;
+          creator?: string | null;
           license?: string | null;
+          license_evidence?: string | null;
           commercial_use_allowed?: boolean | null;
           attribution_required?: boolean | null;
+          attribution_text?: string | null;
+          license_notes?: string | null;
+          commercial_use_verification_status?: "pending" | "verified" | "rejected";
+          commercial_use_verified_by?: string | null;
+          commercial_use_verified_at?: string | null;
           source_order_id?: string | null;
           created_by: string;
           created_at?: string;
@@ -427,9 +459,16 @@ export type Database = {
           notes?: string | null;
           source_url?: string | null;
           source_platform?: string | null;
+          creator?: string | null;
           license?: string | null;
+          license_evidence?: string | null;
           commercial_use_allowed?: boolean | null;
           attribution_required?: boolean | null;
+          attribution_text?: string | null;
+          license_notes?: string | null;
+          commercial_use_verification_status?: "pending" | "verified" | "rejected";
+          commercial_use_verified_by?: string | null;
+          commercial_use_verified_at?: string | null;
           source_order_id?: string | null;
           created_by?: string;
           created_at?: string;
@@ -568,6 +607,266 @@ export type Database = {
           created_at?: string;
         };
       };
+      sellable_products: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          model_id: string | null;
+          name: string;
+          description: string | null;
+          base_price_amount: number | null;
+          base_price_currency: string | null;
+          production_cost_amount: number | null;
+          production_cost_currency: string | null;
+          estimated_margin_amount: number | null;
+          estimated_margin_percentage: number | null;
+          lead_time_days: number | null;
+          status: "draft" | "ready" | "published" | "paused" | "archived";
+          stock_mode: "made_to_order" | "in_stock";
+          available_quantity: number | null;
+          commercial_use_allowed: boolean | null;
+          attribution_required: boolean | null;
+          license_notes: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          model_id?: string | null;
+          name: string;
+          description?: string | null;
+          base_price_amount?: number | null;
+          base_price_currency?: string | null;
+          production_cost_amount?: number | null;
+          production_cost_currency?: string | null;
+          estimated_margin_amount?: number | null;
+          estimated_margin_percentage?: number | null;
+          lead_time_days?: number | null;
+          status?: "draft" | "ready" | "published" | "paused" | "archived";
+          stock_mode?: "made_to_order" | "in_stock";
+          available_quantity?: number | null;
+          commercial_use_allowed?: boolean | null;
+          attribution_required?: boolean | null;
+          license_notes?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          model_id?: string | null;
+          name?: string;
+          description?: string | null;
+          base_price_amount?: number | null;
+          base_price_currency?: string | null;
+          production_cost_amount?: number | null;
+          production_cost_currency?: string | null;
+          estimated_margin_amount?: number | null;
+          estimated_margin_percentage?: number | null;
+          lead_time_days?: number | null;
+          status?: "draft" | "ready" | "published" | "paused" | "archived";
+          stock_mode?: "made_to_order" | "in_stock";
+          available_quantity?: number | null;
+          commercial_use_allowed?: boolean | null;
+          attribution_required?: boolean | null;
+          license_notes?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      product_variants: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          product_id: string;
+          sku: string | null;
+          color: string | null;
+          size: string | null;
+          material: string | null;
+          price_delta_amount: number | null;
+          price_delta_currency: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          product_id: string;
+          sku?: string | null;
+          color?: string | null;
+          size?: string | null;
+          material?: string | null;
+          price_delta_amount?: number | null;
+          price_delta_currency?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          product_id?: string;
+          sku?: string | null;
+          color?: string | null;
+          size?: string | null;
+          material?: string | null;
+          price_delta_amount?: number | null;
+          price_delta_currency?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      sales_channels: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          provider:
+            | "mercadolibre"
+            | "instagram"
+            | "facebook"
+            | "tiendanube"
+            | "woocommerce"
+            | "etsy"
+            | "whatsapp"
+            | "manual";
+          status: "disconnected" | "connected" | "error" | "manual_only";
+          display_name: string;
+          connection_metadata: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          provider:
+            | "mercadolibre"
+            | "instagram"
+            | "facebook"
+            | "tiendanube"
+            | "woocommerce"
+            | "etsy"
+            | "whatsapp"
+            | "manual";
+          status?: "disconnected" | "connected" | "error" | "manual_only";
+          display_name: string;
+          connection_metadata?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          provider?:
+            | "mercadolibre"
+            | "instagram"
+            | "facebook"
+            | "tiendanube"
+            | "woocommerce"
+            | "etsy"
+            | "whatsapp"
+            | "manual";
+          status?: "disconnected" | "connected" | "error" | "manual_only";
+          display_name?: string;
+          connection_metadata?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      channel_listings: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          product_id: string;
+          sales_channel_id: string | null;
+          provider:
+            | "mercadolibre"
+            | "instagram"
+            | "facebook"
+            | "tiendanube"
+            | "woocommerce"
+            | "etsy"
+            | "whatsapp"
+            | "manual";
+          external_listing_id: string | null;
+          external_url: string | null;
+          status: "draft" | "published" | "paused" | "error";
+          title: string;
+          description: string;
+          price_amount: number | null;
+          price_currency: string | null;
+          suggested_tags: Json | null;
+          photo_checklist: Json | null;
+          publish_payload: Json | null;
+          error_message: string | null;
+          last_synced_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          product_id: string;
+          sales_channel_id?: string | null;
+          provider:
+            | "mercadolibre"
+            | "instagram"
+            | "facebook"
+            | "tiendanube"
+            | "woocommerce"
+            | "etsy"
+            | "whatsapp"
+            | "manual";
+          external_listing_id?: string | null;
+          external_url?: string | null;
+          status?: "draft" | "published" | "paused" | "error";
+          title: string;
+          description: string;
+          price_amount?: number | null;
+          price_currency?: string | null;
+          suggested_tags?: Json | null;
+          photo_checklist?: Json | null;
+          publish_payload?: Json | null;
+          error_message?: string | null;
+          last_synced_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          product_id?: string;
+          sales_channel_id?: string | null;
+          provider?:
+            | "mercadolibre"
+            | "instagram"
+            | "facebook"
+            | "tiendanube"
+            | "woocommerce"
+            | "etsy"
+            | "whatsapp"
+            | "manual";
+          external_listing_id?: string | null;
+          external_url?: string | null;
+          status?: "draft" | "published" | "paused" | "error";
+          title?: string;
+          description?: string;
+          price_amount?: number | null;
+          price_currency?: string | null;
+          suggested_tags?: Json | null;
+          photo_checklist?: Json | null;
+          publish_payload?: Json | null;
+          error_message?: string | null;
+          last_synced_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -581,6 +880,7 @@ export type TenantRole = TenantMember["role"];
 export type Customer = Database["public"]["Tables"]["customers"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderUrgency = Order["urgency"];
+export type PaymentStatus = Order["payment_status"];
 export type TenantStorageConnection = Database["public"]["Tables"]["tenant_storage_connections"]["Row"];
 export type FileRecord = Database["public"]["Tables"]["files"]["Row"];
 export type FileEntityType = FileRecord["entity_type"];
@@ -595,5 +895,15 @@ export type PrintAttempt = Database["public"]["Tables"]["print_attempts"]["Row"]
 export type PrintAttemptResult = PrintAttempt["result"];
 export type Model = Database["public"]["Tables"]["models"]["Row"];
 export type ModelStatus = Model["status"];
+export type ModelCommercialUseVerificationStatus = Model["commercial_use_verification_status"];
 export type ModelVersion = Database["public"]["Tables"]["model_versions"]["Row"];
 export type OrderModelOption = Database["public"]["Tables"]["order_model_options"]["Row"];
+export type SellableProduct = Database["public"]["Tables"]["sellable_products"]["Row"];
+export type SellableProductStatus = SellableProduct["status"];
+export type StockMode = SellableProduct["stock_mode"];
+export type ProductVariant = Database["public"]["Tables"]["product_variants"]["Row"];
+export type SalesChannel = Database["public"]["Tables"]["sales_channels"]["Row"];
+export type SalesChannelProvider = SalesChannel["provider"];
+export type SalesChannelStatus = SalesChannel["status"];
+export type ChannelListing = Database["public"]["Tables"]["channel_listings"]["Row"];
+export type ChannelListingStatus = ChannelListing["status"];

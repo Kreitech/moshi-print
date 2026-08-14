@@ -1,24 +1,27 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { nextForConfirmType, sanitizeNextPath, type ConfirmType } from "@/lib/auth/next-for-type";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as
-    | "signup"
-    | "recovery"
-    | "magiclink"
-    | "invite"
-    | null;
-  // Recovery → password update; new signups → onboarding; everything else → dashboard
-  const defaultNext =
-    type === "recovery"
-      ? "/update-password"
-      : type === "signup"
-        ? "/onboarding"
-        : "/dashboard";
-  const next = searchParams.get("next") ?? defaultNext;
+  const type = searchParams.get("type") as ConfirmType;
+  const providerError =
+    searchParams.get("error_description") ?? searchParams.get("error");
+  // next is attacker-reachable (unauthenticated query param) — must stay a
+  // same-site relative path, since it's concatenated into a redirect URL below.
+  const next = sanitizeNextPath(searchParams.get("next"), type);
+
+  if (providerError) {
+    // Supabase already rejected the link (e.g. expired) before we could verify it.
+    console.warn("[auth/confirm] provider returned an error before verification", {
+      type,
+    });
+    return NextResponse.redirect(
+      `${origin}/auth/error?type=${encodeURIComponent(type ?? "")}`
+    );
+  }
 
   // Build redirect first so cookies set during auth are attached to it.
   const redirectResponse = NextResponse.redirect(`${origin}${next}`);
@@ -43,18 +46,45 @@ export async function GET(request: NextRequest) {
   // PKCE code exchange — magic link (and OAuth) redirect back with ?code=
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return redirectResponse;
-    }
+    if (!error) return redirectResponse;
+    console.warn("[auth/confirm] code exchange failed", { type, reason: error.message });
+    return NextResponse.redirect(`${origin}/auth/error?type=${encodeURIComponent(type ?? "")}`);
   }
 
-  // Token hash — email confirmation and password recovery
+  // Token hash — email confirmation, invite, and recovery (verify-otp style templates)
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
-    if (!error) {
-      return redirectResponse;
-    }
+    if (!error) return redirectResponse;
+    console.warn("[auth/confirm] verifyOtp failed", { type, reason: error.message });
+    return NextResponse.redirect(`${origin}/auth/error?type=${encodeURIComponent(type ?? "")}`);
   }
 
-  return NextResponse.redirect(`${origin}/login`);
+  // No query-string params recognized. Supabase's hosted /auth/v1/verify endpoint
+  // can redirect back with the session as a URL hash fragment (#access_token=...)
+  // instead of a query param when the project uses the implicit flow — fragments
+  // are never sent to the server, so a Route Handler alone can't see them. Hand off
+  // to a client page that reads the fragment directly and establishes the session
+  // in the browser, without ever putting the tokens on the wire to our server.
+  const forwardNext =
+    next !== nextForConfirmType(null) ? `?next=${encodeURIComponent(next)}` : "";
+  return new NextResponse(buildHashShimHtml(`/auth/callback${forwardNext}`), {
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+function buildHashShimHtml(callbackPath: string): string {
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Verificando enlace…</title>
+  </head>
+  <body>
+    <p style="font-family: sans-serif;">Verificando tu enlace…</p>
+    <script>
+      var hash = window.location.hash || "";
+      window.location.replace(${JSON.stringify(callbackPath)} + hash);
+    </script>
+  </body>
+</html>`;
 }

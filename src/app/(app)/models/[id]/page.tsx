@@ -87,9 +87,16 @@ export default async function ModelDetailPage({
             {STATUS_LABELS[status] ?? status}
           </span>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/models/${id}/edit`}>Editar</Link>
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {(status === "tested_ok" || status === "production_ready") && (
+            <Button asChild size="sm">
+              <Link href={`/products/new?model_id=${id}`}>Crear producto vendible</Link>
+            </Button>
+          )}
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/models/${id}/edit`}>Editar</Link>
+          </Button>
+        </div>
       </div>
 
       {model.description && (
@@ -128,7 +135,25 @@ export default async function ModelDetailPage({
             <p>{model.attribution_required ? "Si" : "No"}</p>
           </div>
         )}
+        {model.attribution_text && (
+          <div className="col-span-2">
+            <p className="text-xs text-muted-foreground mb-1">Texto de atribucion</p>
+            <p>{model.attribution_text}</p>
+          </div>
+        )}
+        {model.license_notes && (
+          <div className="col-span-2">
+            <p className="text-xs text-muted-foreground mb-1">Notas de licencia</p>
+            <p className="whitespace-pre-wrap">{model.license_notes}</p>
+          </div>
+        )}
       </div>
+
+      {model.commercial_use_allowed === null && (
+        <p className="rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+          No está confirmada la licencia comercial de este modelo.
+        </p>
+      )}
 
       {model.tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
