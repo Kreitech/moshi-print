@@ -1,28 +1,25 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { emailDestination, emailErrorPath, emailFlow } from "@/lib/auth/email-flow";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as
-    | "signup"
-    | "recovery"
-    | "magiclink"
-    | "invite"
-    | null;
-  // Recovery → password update; new signups → onboarding; everything else → dashboard
-  const defaultNext =
-    type === "recovery"
-      ? "/update-password"
-      : type === "signup"
-        ? "/onboarding"
-        : "/dashboard";
-  const next = searchParams.get("next") ?? defaultNext;
+  const type = emailFlow(searchParams.get("type")) ??
+    (searchParams.get("next") === "/update-password" ? "recovery" : null);
+  const failure = () => privateRedirect(new URL(emailErrorPath(type), origin));
 
-  // Build redirect first so cookies set during auth are attached to it.
-  const redirectResponse = NextResponse.redirect(`${origin}${next}`);
+  if (searchParams.has("error") || searchParams.has("error_description")) return failure();
+  if (!code && !token_hash) {
+    // A redirect without a fragment preserves the fragment from the email URL.
+    const callback = new URL("/auth/callback", origin);
+    if (type) callback.searchParams.set("type", type);
+    return privateRedirect(callback);
+  }
+  if (!code && !type) return failure();
 
+  const redirectResponse = privateRedirect(new URL(emailDestination(type), origin));
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,21 +37,14 @@ export async function GET(request: NextRequest) {
     }
   );
 
-  // PKCE code exchange — magic link (and OAuth) redirect back with ?code=
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return redirectResponse;
-    }
-  }
+  const { data, error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({ type: type!, token_hash: token_hash! });
+  if (!error && data.session) return redirectResponse;
+  console.warn("[auth/confirm] Session verification failed", { type, code: error?.code });
+  return failure();
+}
 
-  // Token hash — email confirmation and password recovery
-  if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash });
-    if (!error) {
-      return redirectResponse;
-    }
-  }
-
-  return NextResponse.redirect(`${origin}/login`);
+function privateRedirect(url: URL) {
+  return NextResponse.redirect(url, { headers: { "Cache-Control": "private, no-store" } });
 }

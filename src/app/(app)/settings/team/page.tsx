@@ -41,13 +41,14 @@ export default async function TeamPage() {
     .order("created_at");
 
   const { data: usersData } = await svc.auth.admin.listUsers({ perPage: 1000 });
-  const emailMap = new Map(usersData.users.map((u) => [u.id, u.email ?? ""]));
+  const usersById = new Map(usersData.users.map((u) => [u.id, u]));
 
   const teamMembers = (members ?? []).map((m) => ({
     id: m.id,
     user_id: m.user_id,
     role: m.role as TenantRole,
-    email: emailMap.get(m.user_id) ?? "(desconocido)",
+    email: usersById.get(m.user_id)?.email ?? "(desconocido)",
+    pendingInvite: Boolean(usersById.get(m.user_id)?.invited_at && !usersById.get(m.user_id)?.email_confirmed_at),
     created_at: m.created_at,
   }));
 

@@ -50,18 +50,21 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user && !isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirectWithCookies("/login", request, supabaseResponse);
   }
 
   if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    return redirectWithCookies("/dashboard", request, supabaseResponse);
   }
 
   return supabaseResponse;
+}
+
+function redirectWithCookies(path: string, request: NextRequest, source: NextResponse) {
+  const response = NextResponse.redirect(new URL(path, request.url));
+  source.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 
 export const config = {

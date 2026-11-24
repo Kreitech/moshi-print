@@ -1,28 +1,27 @@
 "use server";
 
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-// redirect is kept for signUpWithPassword — signInWithPassword uses client-side redirect
+import { authEmailError, emailCallbackUrl, getAppOrigin } from "@/lib/auth/email-delivery";
 
-async function getOrigin(): Promise<string> {
-  const hdrs = await headers();
-  const host = hdrs.get("host") ?? "localhost:3000";
-  const proto =
-    hdrs.get("x-forwarded-proto") ??
-    (host.includes("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
+function readEmail(formData: FormData) {
+  const value = formData.get("email");
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
 export async function signInWithPassword(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = readEmail(formData);
   const password = formData.get("password") as string;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: error.message };
+    if (error.code === "email_not_confirmed") {
+      return { error: "Confirmá tu correo con el enlace que recibiste para iniciar sesión." };
+    }
+    console.warn("[auth] Password login failed", { code: error.code });
+    return { error: "No pudimos iniciar sesión. Revisá el correo y la contraseña." };
   }
 
   // Return success and let the client redirect — avoids cookie loss on server redirect
@@ -30,7 +29,7 @@ export async function signInWithPassword(formData: FormData) {
 }
 
 export async function signUpWithPassword(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = readEmail(formData);
   const password = formData.get("password") as string;
 
   if (!email || !password) {
@@ -40,19 +39,19 @@ export async function signUpWithPassword(formData: FormData) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
   }
 
-  const origin = await getOrigin();
+  const origin = await getAppOrigin();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${origin}/auth/confirm` },
+    options: { emailRedirectTo: emailCallbackUrl(origin, "signup") },
   });
 
   if (error) {
     if (error.message.includes("already registered") || error.message.includes("User already registered")) {
       return { error: "Este correo ya está registrado. Intenta iniciar sesión." };
     }
-    return { error: `No se pudo crear la cuenta: ${error.message}` };
+    return { error: authEmailError(error) };
   }
 
   // Email confirmation required — no active session yet
@@ -70,41 +69,41 @@ export async function signOut() {
 }
 
 export async function signInWithMagicLink(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = readEmail(formData);
 
   if (!email) {
     return { error: "Ingresa tu correo electrónico." };
   }
 
-  const origin = await getOrigin();
+  const origin = await getAppOrigin();
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true, emailRedirectTo: `${origin}/auth/confirm` },
+    options: { shouldCreateUser: true, emailRedirectTo: emailCallbackUrl(origin, "magiclink") },
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: authEmailError(error) };
   }
 
   return { success: "Enlace enviado. Revisa tu correo electrónico." };
 }
 
 export async function sendPasswordRecovery(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = readEmail(formData);
 
   if (!email) {
     return { error: "Ingresa tu correo electrónico." };
   }
 
-  const origin = await getOrigin();
+  const origin = await getAppOrigin();
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/confirm?next=/update-password`,
+    redirectTo: emailCallbackUrl(origin, "recovery"),
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: authEmailError(error) };
   }
 
   return { success: "Revisa tu correo para restablecer tu contraseña." };
@@ -125,7 +124,11 @@ export async function updatePassword(formData: FormData) {
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
-    return { error: error.message };
+    if (error.code === "session_not_found" || error.name === "AuthSessionMissingError") {
+      return { error: "Tu sesión expiró. Solicitá un enlace nuevo desde el inicio de sesión." };
+    }
+    console.warn("[auth] Password reset failed", { code: error.code });
+    return { error: "No se pudo actualizar la contraseña. Intentá de nuevo." };
   }
 
   return { redirect: "/dashboard" };
