@@ -5,6 +5,7 @@ import { updateMemberRole, removeMember } from "@/lib/actions/team";
 import { TableRow, TableCell } from "@/components/ui/table";
 import type { TeamMember } from "@/lib/actions/team";
 import type { TenantRole } from "@/types/database";
+import { MemberEmailActions } from "@/components/features/settings/member-email-actions";
 
 const ROLE_LABELS: Record<TenantRole, string> = {
   owner: "Propietario",
@@ -30,6 +31,7 @@ export function TeamMemberRow({ member, currentUserId, currentUserRole }: Props)
   const isSelf = member.user_id === currentUserId;
   const canEdit =
     !isSelf &&
+    ["owner", "admin"].includes(currentUserRole) &&
     !(currentUserRole === "admin" && ["owner", "admin"].includes(member.role));
 
   const availableRoles =
@@ -110,6 +112,7 @@ export function TeamMemberRow({ member, currentUserId, currentUserRole }: Props)
         {error && (
           <p className="text-xs text-destructive mt-1">{error}</p>
         )}
+        {currentUserRole === "owner" && <MemberEmailActions member={member} />}
       </TableCell>
     </TableRow>
   );
